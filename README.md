@@ -13,9 +13,9 @@
 ## 回路図
 　KiCadフォルダ内のJR-200_SD.pdfを参照してください。
 
-[回路図](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/TITLE.jpg)
+[回路図](https://github.com/yanataka60/JR-200_SD/blob/main/Kicad/JR-200_SD.pdf)
 
-![JR-200_SD](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/TITLE.jpg)
+![JR-200_SD](https://github.com/yanataka60/JR-200_SD/blob/main/Kicad/JR-200_SD_1.jpg)
 
 ## 部品
 |番号|品名|数量|備考|
