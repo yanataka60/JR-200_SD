@@ -1,6 +1,6 @@
 # National JR-200にSD-CARDとのロード、セーブ機能
 
-![JR-200_SD](https://github.com/yanataka60/JR-100_SD/blob/main/JPEG/TITLE.jpg)
+![JR-200_SD](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/TITLE.jpg)
 
 　JR-200でSD-CARDからcjr形式ファイルのロード、セーブ機能を実現するものです。
 
@@ -13,9 +13,9 @@
 ## 回路図
 　KiCadフォルダ内のJR-200_SD.pdfを参照してください。
 
-[回路図](https://github.com/yanataka60/JR-100_SD/blob/main/Kicad/JR-100_SD.pdf)
+[回路図](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/TITLE.jpg)
 
-![JR-200_SD](https://github.com/yanataka60/JR-100_SD/blob/main/Kicad/JR-100_SD_1.jpg)
+![JR-200_SD](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/TITLE.jpg)
 
 ## 部品
 |番号|品名|数量|備考|
@@ -49,7 +49,7 @@
 
 　ハンダ付けに自信のない方はJ2の秋月電子通商　AE-microSD-LLCNVをお使いください。AE-microSD-LLCNVならパワーLED、アクセスLEDが付いています。
 
-![MicroSD Card Adapter](https://github.com/yanataka60/JR-100_SD/blob/main/JPEG/MicroSD%20Card%20Adapter.JPG)
+![MicroSD Card Adapter](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/MicroSD%20Card%20Adapter.JPG)
 
 ## ROMへの書込み
 　ROMフォルダ内のSD.binをROMライター(TL866II Plus等)を使って27512、27256又は2764に書き込みます。
