@@ -89,9 +89,9 @@
 注)Arduinoを基板に直付けしている場合、Arduinoプログラムを書き込むときは、JR-200本体とは接続を外したうえで書き込んでください。
 
 ## 接続
-　JR-200本体後ろの拡張端子からフラットケーブルで接続。
+　JR-200本体後ろの拡張端子からフラットケーブルで接続します。
 
-![JR-200_SD Back](https://github.com/yanataka60/JR-100_SD/blob/main/JPEG/JR-100_SD(5).jpg)
+![JR-200_SD Back](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/JR-200_SD(3).JPG)
 
 ## SD-CARD
 　出来ればSD規格のSDカードを用意してください。
