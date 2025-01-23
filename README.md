@@ -52,7 +52,7 @@
 ![MicroSD Card Adapter](https://github.com/yanataka60/JR-200_SD/blob/main/JPEG/MicroSD%20Card%20Adapter.JPG)
 
 ## ROMへの書込み
-　ROMフォルダ内のSD.binをROMライター(TL866II Plus等)を使って27512、27256又は2764に書き込みます。
+　ROMフォルダ内のSD.binをROMライター(TL866II Plus等)を使って2764、27256又は27512に書き込みます。
 
 ### ROMの相性
 　開発中にAT28C64 15PCを使ったところ、正常に動作しないという現象がありました。
@@ -94,11 +94,11 @@
 ![JR-200_SD Back](https://github.com/yanataka60/JR-100_SD/blob/main/JPEG/JR-100_SD(5).jpg)
 
 ## SD-CARD
-　出来れば8GB以下のSDカードを用意してください。
+　出来ればSD規格のSDカードを用意してください。
 
 　ArduinoのSdFatライブラリは、SD規格(最大2GB)、SDHC規格(2GB～32GB)に対応していますが、SDXC規格(32GB～2TB)には対応していません。
 
-　また、SDHC規格のSDカードであっても32GB、16GBは相性により動作しないものがあるようです。
+　また、SDHC規格のSDカードであっても相性により動作しないものがあるようです。
 
 　FAT16又はFAT32が認識できます。NTFSは認識できません。
 
