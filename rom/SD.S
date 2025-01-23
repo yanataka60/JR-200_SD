@@ -209,8 +209,7 @@ FOOTER	JSR		RCVBYTE			;$FF
 		JSR		RCVBYTE			;ロード終了アドレス+1下位
 		DEX
 		STX		SDSRT
-		LDAA	FTYPE
-		TSTA
+		TST		FTYPE
 		BNE		LD4
 ;----------- BASIC LOAD 後処理 ------------------
 		LDX		SDSRT
@@ -447,7 +446,10 @@ DL8		JSR		SNDBYTE
 		
 SDIR99	RTS
 
-CMDERR2	JMP		CMDERR
+CMDERR2
+		LDX		#MSG2_CMD
+		JSR		STRPRN
+		RTS
 
 ;---------------------- BASICプログラム中からLOAD -----------------
 ; A=USR($8003):REM xxxxxのように直後のREMの文字列をファイル名として解釈する。
@@ -593,6 +595,8 @@ CSND	JSR		SNDBYTE			;Aレジスタのコマンドコードを送信
 		LDAB	#$20			;(X)からのファイル名32Byteを送信
 CSND1	LDAA	X
 		INX
+		CMPA	#'"'
+		BEQ		CSND1
 		JSR		SNDBYTE
 		DECB
 		BNE		CSND1
@@ -702,6 +706,10 @@ MSG_CMD
 		FCC		/ MSAVE : Save To SD(Binary)/
 		FCB		$0D
 		FCC		/ SDDIR : Find SD File/
+		FCB		$0D,$00
+	
+MSG2_CMD
+		FCC		/Syntax ERROR/
 		FCB		$0D,$00
 	
 		END
