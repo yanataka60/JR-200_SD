@@ -53,7 +53,7 @@ LAU1	LDX		#SDMES
 		JSR		LINPUT
 		LDX		#LBUFF-1
 		JSR		CMD1
-		CMPA	#'!'
+		CMPA	#'!'			;!コマンドならリターン
 		BEQ		LAU2
 		BRA		LAU1
 LAU2	RTS
@@ -192,7 +192,7 @@ LD2		JSR		RCVBYTE			;$02
 		STAA	SDSRT+1
 		LDX		SDSRT
 		LDAA	SDBLK
-		CMPA	#$01
+		CMPA	#$01			;ブロックナンバー01の時だけ、ロードアドレスを実行アドレスとして保存
 		BNE		LD3
 		STX		SDEXE
 LD3		JSR		RCVBYTE			;データ受信
@@ -446,6 +446,7 @@ DL8		JSR		SNDBYTE
 		
 SDIR99	RTS
 
+;----------------- コマンドエラー表示 --------------------------
 CMDERR2
 		LDX		#MSG2_CMD
 		JSR		STRPRN
@@ -493,7 +494,7 @@ ULD9
 		JSR		PIOINI			;8255初期化
 		JMP		FN01
 
-
+;--------------- エラーメッセージ ------------------------------
 ERRRTN
 		CMPA	#$F0
 		BNE		ERR1
@@ -595,7 +596,7 @@ CSND	JSR		SNDBYTE			;Aレジスタのコマンドコードを送信
 		LDAB	#$20			;(X)からのファイル名32Byteを送信
 CSND1	LDAA	X
 		INX
-		CMPA	#'"'
+		CMPA	#'"'			;ダブルコーテーション除去
 		BEQ		CSND1
 		JSR		SNDBYTE
 		DECB
