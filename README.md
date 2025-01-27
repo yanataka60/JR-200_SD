@@ -33,6 +33,7 @@
 |U9|Arduino_Pro_Mini_5V|1|Atmega328版を使用 168版は不可。(注3)|
 |C2-C9|積層セラミックコンデンサ 0.1uF|8||
 |C1|電解コンデンサ 16v100uF|1||
+||50Pinフラットケーブル|1||
 ||ピンヘッダ|2Pin分|Arduino_Pro_MiniにはA4、A5用のピンヘッダが付いていないため別途調達が必要です 秋月電子通商 PH-1x40SGなど|
 ||ピンソケット(任意)|26Pin分|Arduino_Pro_Miniを取り外し可能としたい場合に調達します 秋月電子通商 FHU-1x42SGなど|
 
@@ -233,3 +234,7 @@
 　　AE-microSD-LLCNV
 
 　　　https://github.com/kuninet/PC-8001-SD-8kRAM
+
+## 追記
+2025.1.27 部品に50Pinフラットケーブルを追加しました。
+
