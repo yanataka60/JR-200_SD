@@ -176,8 +176,8 @@
 
 　　SAVE "TEST.BAS" -> 「TEST.BAS.CJR」で保存される。
 
-#### MSAVE $xxxx,$yyyy,"DOSファイル名"[CR]
-　16進数4桁で指定する$xxxxから$yyyyまでの機械語プログラムを指定したDOSフィル名でSD-CARDに上書きSAVEします。ダブルコーテーションはあっても無くても構いません。
+#### MSAVE xxxx,yyyy,"DOSファイル名"[CR]
+　16進数4桁で指定するxxxxからyyyyまでの機械語プログラムを指定したDOSフィル名でSD-CARDに上書きSAVEします。ダブルコーテーションはあっても無くても構いません。
 
 　ファイル名の省略は出来ません。
 
@@ -189,9 +189,9 @@
 
 　例)
 
-　　MSAVE $E000,$FFFF,"TEST" -> 「TEST.CJR」で保存される。
+　　MSAVE E000,FFFF,"TEST" -> 「TEST.CJR」で保存される。
 
-　　MSAVE $E000,$FFFF,"TEST.BIN" -> 「TEST.BIN.CJR」で保存される。
+　　MSAVE E000,FFFF,"TEST.BIN" -> 「TEST.BIN.CJR」で保存される。
 
 #### ![CR]
 　JR-200のMONITORに戻ります。
@@ -241,3 +241,6 @@
 2025.1.27 部品に50Pinフラットケーブルを追加しました。
 
 2025.1.29 コネクタの記述を修正しました。
+
+2025.1.31 MSAVEのアドレス指定に$がついていた誤記を訂正しました。
+
