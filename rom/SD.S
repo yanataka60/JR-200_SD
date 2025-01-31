@@ -1,3 +1,5 @@
+;2025.1.31 MEXECのアドレス指定で$を読み飛ばしに修正
+
 PIOA	EQU		$CD00
 PIOB	EQU		$CD01
 PIOC	EQU		$CD02
@@ -300,6 +302,7 @@ MSAVE
 		INX						;'E'読み飛ばし
 		JSR		SPDEL			;最初のSPACEは除去
 
+		JSR		DLLDEL
 		STX		STRPNT
 		JSR		STR2HEX			;文字列からSAVE開始アドレスを取得
 		TSTB
@@ -309,6 +312,7 @@ MSAVE
 		LDAA	HEXDAT+1
 		STAA	SDSRT+1
 		INX
+		JSR		DLLDEL
 		STX		STRPNT
 		JSR		STR2HEX			;文字列からSAVE終了アドレスを取得
 		TSTB
@@ -355,6 +359,7 @@ MEXEC	LDX		SDEXE
 ;--------------- GO COMMAND -------------------------
 GCMD
 		JSR		SPDEL			;最初のSPACEは除去
+		JSR		DLLDEL
 		STX		STRPNT
 		JSR		STR2HEX			;文字列から実行開始アドレスを取得
 		TSTB
@@ -613,6 +618,14 @@ SPDEL	INX
 		CMPA	#' '			;最初のSPACEは除去
 		BEQ		SPDEL
 		RTS
+
+;------------------- $除去 ------------------------
+DLLDEL	LDAA	X
+		CMPA	#'$'			;最初の$は除去
+		BNE		DLDEL1
+		INX
+		BRA		DLLDEL
+DLDEL1	RTS
 
 ;--------------- Aレジスタのアルファベット小文字を大文字に変換 ----------------
 AZLCNV	CMPA	#$61			;a～zなら$20を引いてA～Zに変換
