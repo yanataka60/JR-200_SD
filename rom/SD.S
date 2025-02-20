@@ -1,9 +1,9 @@
 ;2025.1.31 MEXECのアドレス指定で$を読み飛ばしに修正
 
 PIOA	EQU		$CD00
-PIOB	EQU		$CD01
-PIOC	EQU		$CD02
-PIOR	EQU		$CD03
+PIOCA	EQU		$CD01
+PIOB	EQU		$CD02
+PIOCB	EQU		$CD03
 
 KCODE	EQU		$0001			;キースキャン結果
 JOYSTK1	EQU		$0002			;JOYSTICK1スキャン結果
@@ -23,6 +23,7 @@ SDEXE	EQU		$00CE			;SD用実行アドレス
 SDNPNT	EQU		$00D0
 SDNAME	EQU		$00D2
 LBUFF	EQU		$018E			;キーバッファ
+CRTCNR	EQU		$C11F			;ディスプレイ右上
 KSCAN	EQU		$E8CB			;キースキャン $0001:キーデータ(キャラクタコード) $0002:JOYSTICK1 $0003:JOYSTICK2
 LINPUT	EQU		$EAD0			;Xレジスタからのメッセージを表示して1行入力 メッセージの終端は$FF 入力文字列は$018E～(80文字)
 PRINT	EQU		$EBE7			;Aレジスタのアスキーコードを出力
@@ -198,6 +199,7 @@ LD2		JSR		RCVBYTE			;$02
 		BNE		LD3
 		STX		SDEXE
 LD3		JSR		RCVBYTE			;データ受信
+		STAA	CRTCNR			;受信データをディスプレイ右上に表示
 		STAA	X
 		INX
 		DECB
@@ -206,7 +208,9 @@ LD3		JSR		RCVBYTE			;データ受信
 		BRA		LD2
 		
 ;------------------ CJRフッターブロック受信 -------------------------
-FOOTER	JSR		RCVBYTE			;$FF
+FOOTER	CLRA
+		STAA	CRTCNR			;ディスプレイ右上をクリア
+		JSR		RCVBYTE			;$FF
 		JSR		RCVBYTE			;ロード終了アドレス+1上位
 		JSR		RCVBYTE			;ロード終了アドレス+1下位
 		DEX
@@ -280,6 +284,7 @@ SV1		LDAA	SDSRT			;SAVE開始アドレス送信
 
 SV2		LDX		SDSRT
 		LDAA	X				;SAVEデータ送信
+		STAA	CRTCNR			;送信データをディスプレイ右上に表示
 		JSR		SNDBYTE
 		INX
 		STX		SDSRT
@@ -289,6 +294,8 @@ SV2		LDX		SDSRT
 		BNE		SV2
 		LDX		#SVMSG			;SAVE終了MSG
 		JSR		STRPRN
+		CLRA
+		STAA	CRTCNR			;ディスプレイ右上をクリア
 		
 SV99	RTS
 
@@ -342,7 +349,7 @@ MSAVE
 
 		LDAA	#$01			;ファイルタイプ(1:機械語)
 		JSR		SNDBYTE
-		BRA		SV1
+		BRA		SVJMP
 
 ADDERR2
 		LDAA	#$FF
@@ -350,6 +357,9 @@ ADDERR2
 ADDERR	LDX		#MSG_AD
 		JSR		STRPRN
 		RTS
+
+SVJMP	JMP		SV1
+
 
 ;--------------- MEXECUTE 機械語読み込みアドレスを実行アドレスとしてジャンプ -------
 MEXEC	LDX		SDEXE
@@ -528,34 +538,34 @@ ERRR	JSR		STRPRN
 
 
 **** BUSYをCHECK(1) ****
-;PORTC BIT7が1になるまでLOOP
-F1CHK	LDAA	PIOC
-		ANDA	#$80			;PORTC BIT7 = 1?
+;PORTA BIT4が1になるまでLOOP
+F1CHK	LDAA	PIOB
+		ANDA	#$10			;PORTB BIT4 = 1?
 		BEQ		F1CHK
 		RTS
 
 **** BUSYをCHECK(0) ****
-;PORTC BIT7が0になるまでLOOP
-F2CHK	LDAA	PIOC
-		ANDA	#$80			;PORTC BIT7 = 0?
+;PORTA BIT4が0になるまでLOOP
+F2CHK	LDAA	PIOB
+		ANDA	#$10			;PORTB BIT4 = 0?
 		BNE		F2CHK
 		RTS
 
 **** 1BYTE受信****
 *受信データをアキュムレータAにセットしてリターン
-RCVBYTE	BSR		F1CHK			;PORTC BIT7が1になるまでLOOP
-		LDAA	PIOB			;PORTB -> A
+RCVBYTE	BSR		F1CHK			;PORTB BIT4が1になるまでLOOP
+		LDAA	PIOA			;PORTA -> A
 		PSHA
-		LDAA	#$05
-		STAA	PIOR			;PORTC BIT2 <- 1
-		BSR		F2CHK			;PORTC BIT7が0になるまでLOOP
-		LDAA	#$04
-		STAA	PIOR			;PORTC BIT2 <- 0
+		LDAA	#$20
+		STAA	PIOB			;PORTB BIT5 <- 1
+		BSR		F2CHK			;PORTB BIT4が0になるまでLOOP
+		LDAA	#$00
+		STAA	PIOB			;PORTB BIT5 <- 0
 		PULA
 		RTS
 
 **** 1BYTE送信 ****
-*アキュムレータAの内容をPORTA下位4BITに4BITずつ送信
+*アキュムレータAの内容をPORTB下位4BITに4BITずつ送信
 SNDBYTE
 		PSHA
 		LSRA
@@ -572,23 +582,31 @@ SNDBYTE
 **** 4BIT送信 ****
 *アキュムレータA下位4ビットを送信する
 SND4BIT
-		STAA	PIOA
-		LDAA	#$05
-		STAA	PIOR			;PORTC BIT2 <- 1
-		BSR		F1CHK			;PORTC BIT7が1になるまでLOOP
-		LDAA	#$04
-		STAA	PIOR			;PORTC BIT2 <- 0
+;		STAA	PIOB
+		ORAA	#$20
+		STAA	PIOB			;PORTB BIT5 <- 1
+		BSR		F1CHK			;PORTB BIT4が1になるまでLOOP
+		ANDA	#$0F
+		STAA	PIOB			;PORTB BIT5 <- 0
 		BSR		F2CHK
 		RTS
 
 
-;**** 8255初期化 ****
-;*PORTC下位BITをOUTPUT、上位BITをINPUT、PORTBをINPUT、PORTAをOUTPUT
-PIOINI	LDAA	#$8A
-		STAA	PIOR			;PIOR <- $8A
+;**** 6821初期化 ****
+;*PORTB下位BITをOUTPUT、PORTB BIT4をINPUT、PORTB BIT5をOUTPUT、PORTAをINPUT
+PIOINI	CLRA
+		STAA	PIOCB			;データ方向レジスタ(B)を選択
+		LDAA	#$EF			;PORTB下位BITをOUTPUT、PORTB BIT4をINPUT、PORTB BIT5をOUTPUTに設定
+		STAA	PIOB
+		LDAA	#$2C
+		STAA	PIOCB			;PORTBに切り替え
 		CLRA
-		STAA	PIOA			;PIOA <- $00
-		STAA	PIOC			;PIOC <- $00
+		STAA	PIOB			;PORTBクリア
+;		CLRA
+		STAA	PIOCA			;データ方向レジスタ(A)を選択
+		STAA	PIOA			;PORTAをINPUTに設定
+		LDAA	#$2C
+		STAA	PIOCA			;PORTAに切り替え
 		RTS
 		
 

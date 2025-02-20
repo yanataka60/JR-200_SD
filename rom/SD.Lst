@@ -1,9 +1,9 @@
 0001				;2025.1.31 MEXECのアドレス指定で$を読み飛ばしに修正
 0002				
 0003	CD00			PIOA  	EQU   	$CD00          	
-0004	CD01			PIOB  	EQU   	$CD01          	
-0005	CD02			PIOC  	EQU   	$CD02          	
-0006	CD03			PIOR  	EQU   	$CD03          	
+0004	CD01			PIOCA 	EQU   	$CD01          	
+0005	CD02			PIOB  	EQU   	$CD02          	
+0006	CD03			PIOCB 	EQU   	$CD03          	
 0007				
 0008	0001			KCODE 	EQU   	$0001          	;キースキャン結果
 0009	0002			JOYSTK1	EQU   	$0002          	;JOYSTICK1スキャン結果
@@ -23,669 +23,687 @@
 0023	00D0			SDNPNT	EQU   	$00D0          	
 0024	00D2			SDNAME	EQU   	$00D2          	
 0025	018E			LBUFF 	EQU   	$018E          	;キーバッファ
-0026	E8CB			KSCAN 	EQU   	$E8CB          	;キースキャン $0001:キーデータ(キャラクタコード) $0002:JOYSTICK1 $0003:JOYSTICK2
-0027	EAD0			LINPUT	EQU   	$EAD0          	;Xレジスタからのメッセージを表示して1行入力 メッセージの終端は$FF 入力文字列は$018E～(80文字)
-0028	EBE7			PRINT 	EQU   	$EBE7          	;Aレジスタのアスキーコードを出力
-0029				
+0026	C11F			CRTCNR	EQU   	$C11F          	;ディスプレイ右上
+0027	E8CB			KSCAN 	EQU   	$E8CB          	;キースキャン $0001:キーデータ(キャラクタコード) $0002:JOYSTICK1 $0003:JOYSTICK2
+0028	EAD0			LINPUT	EQU   	$EAD0          	;Xレジスタからのメッセージを表示して1行入力 メッセージの終端は$FF 入力文字列は$018E～(80文字)
+0029	EBE7			PRINT 	EQU   	$EBE7          	;Aレジスタのアスキーコードを出力
 0030				
-0031	EEE7			HEX2AS	EQU   	$EEE7          	;(X)の16進数をアスキーコードに変換してABレジスタへ A:上位4ビット B:下位4ビット
-0032	FB19			STR2HEX	EQU   	$FB19          	;($00A1-$00A2)から始まる16進数文字列を16進数データに変換して($0075-$0076)に格納する
-0033				
+0031				
+0032	EEE7			HEX2AS	EQU   	$EEE7          	;(X)の16進数をアスキーコードに変換してABレジスタへ A:上位4ビット B:下位4ビット
+0033	FB19			STR2HEX	EQU   	$FB19          	;($00A1-$00A2)から始まる16進数文字列を16進数データに変換して($0075-$0076)に格納する
 0034				
 0035				
 0036				
-0037				;MONITER Gコマンドの後ろにファイルネームを指定 $0193(LBUFF+5)から取得
-0038				
-0039				;ソース内記述汎用ルーチン
-0040				;AZLCNV							;大文字変換 Aレジスタのアルファベット小文字を大文字に変換
-0041				;STRPRN							;文字列出力 (X)から$00までの文字列を表示
-0042				
-0043	8000			      	ORG   	$8000          	
-0044				
-0045				*
-0046	8000	7E 8006		LAU   	JMP   	LAUNCH         	
-0047	8003	7E 82DE		ULDJ  	JMP   	ULOAD          	;USR関数でLOAD 直後のREM文でファイル名指定
-0048				;CMDJ	JMP		CMD
-0049				
-0050				;---------------- LAUNCHER ---------------------
-0051	8006	BD 839A		LAUNCH	JSR   	PIOINI         	;8255初期化
-0052	8009	CE 83FC		      	LDX   	#TITLE_MSG     	
-0053	800C	BD 83E4		      	JSR   	STRPRN         	
-0054	800F	CE 8411		LAU1  	LDX   	#SDMES         	
-0055	8012	BD EAD0		      	JSR   	LINPUT         	
-0056	8015	CE 018D		      	LDX   	#LBUFF-1       	
-0057	8018	BD 8022		      	JSR   	CMD1           	
-0058	801B	81 21		      	CMPA  	#'!'           	;!コマンドならリターン
-0059	801D	27 02		      	BEQ   	LAU2           	
-0060	801F	20 EE		      	BRA   	LAU1           	
-0061	8021	39		LAU2  	RTS   			
-0062				
-0063				;----------------- COMMAND ------------------------
-0064				;CMD		LDX		#LBUFF+5-1
-0065	8022	08		CMD1  	INX   			
-0066	8023	A6 00		      	LDAA  	X              	
-0067	8025	BD 83D9		      	JSR   	AZLCNV         	
-0068	8028	81 20		      	CMPA  	#' '           	;最初のSPACEは除去
-0069	802A	27 F6		      	BEQ   	CMD1           	
-0070				
-0071	802C	81 4D		      	CMPA  	#'M'           	;MEXEC MSAVE
-0072	802E	27 12		      	BEQ   	CMD2           	
-0073	8030	81 4C		      	CMPA  	#'L'           	;LOAD
-0074	8032	27 1E		      	BEQ   	CMD3           	
-0075	8034	81 53		      	CMPA  	#'S'           	;SDDIR SAVE
-0076	8036	27 26		      	BEQ   	CMD4           	
-0077	8038	81 47		      	CMPA  	#'G'           	;GO
-0078	803A	27 4B		      	BEQ   	GCMD2          	
-0079	803C	81 21		      	CMPA  	#'!'           	;EXIT LAUNCHER
-0080	803E	27 4A		      	BEQ   	EXIT           	
-0081	8040	20 2C		      	BRA   	CMDERR         	
-0082				
-0083	8042	08		CMD2  	INX   			
-0084	8043	A6 00		      	LDAA  	X              	
-0085	8045	BD 83D9		      	JSR   	AZLCNV         	
-0086	8048	81 45		      	CMPA  	#'E'           	;MEXEC
-0087	804A	27 2C		      	BEQ   	MEXEC2         	
-0088	804C	81 53		      	CMPA  	#'S'           	;MSAVE
-0089	804E	27 2B		      	BEQ   	MSAVE2         	
-0090	8050	20 1C		      	BRA   	CMDERR         	
-0091				
-0092	8052	08		CMD3  	INX   			
-0093	8053	A6 00		      	LDAA  	X              	
-0094	8055	BD 83D9		      	JSR   	AZLCNV         	
-0095	8058	81 4F		      	CMPA  	#'O'           	;LOAD
-0096	805A	27 19		      	BEQ   	LOAD2          	
-0097	805C	20 10		      	BRA   	CMDERR         	
-0098				
-0099	805E	08		CMD4  	INX   			
-0100	805F	A6 00		      	LDAA  	X              	
-0101	8061	BD 83D9		      	JSR   	AZLCNV         	
-0102	8064	81 44		      	CMPA  	#'D'           	;SDDIR
-0103	8066	27 16		      	BEQ   	SDDIR2         	
-0104	8068	81 41		      	CMPA  	#'A'           	;SAVE
-0105	806A	27 15		      	BEQ   	SAVE2          	
-0106	806C	20 00		      	BRA   	CMDERR         	
-0107				
-0108	806E			CMDERR				
-0109	806E	CE 84BF		      	LDX   	#MSG_CMD       	
-0110	8071	BD 83E4		      	JSR   	STRPRN         	
-0111	8074	39		      	RTS   			
-0112				
-0113	8075	7E 808E		LOAD2 	JMP   	LOAD           	
-0114	8078	7E 822F		MEXEC2	JMP   	MEXEC          	
-0115	807B	7E 81D5		MSAVE2	JMP   	MSAVE          	
-0116	807E	7E 824F		SDDIR2	JMP   	SDDIR          	
-0117	8081	7E 8179		SAVE2 	JMP   	SAVE           	
-0118	8084	7E 82DE		ULOAD2	JMP   	ULOAD          	
-0119	8087	7E 8234		GCMD2 	JMP   	GCMD           	
-0120	808A	39		EXIT  	RTS   			
-0121				
+0037				
+0038				;MONITER Gコマンドの後ろにファイルネームを指定 $0193(LBUFF+5)から取得
+0039				
+0040				;ソース内記述汎用ルーチン
+0041				;AZLCNV							;大文字変換 Aレジスタのアルファベット小文字を大文字に変換
+0042				;STRPRN							;文字列出力 (X)から$00までの文字列を表示
+0043				
+0044	8000			      	ORG   	$8000          	
+0045				
+0046				*
+0047	8000	7E 8006		LAU   	JMP   	LAUNCH         	
+0048	8003	7E 82EF		ULDJ  	JMP   	ULOAD          	;USR関数でLOAD 直後のREM文でファイル名指定
+0049				;CMDJ	JMP		CMD
+0050				
+0051				;---------------- LAUNCHER ---------------------
+0052	8006	BD 83A8		LAUNCH	JSR   	PIOINI         	;8255初期化
+0053	8009	CE 841B		      	LDX   	#TITLE_MSG     	
+0054	800C	BD 8403		      	JSR   	STRPRN         	
+0055	800F	CE 8430		LAU1  	LDX   	#SDMES         	
+0056	8012	BD EAD0		      	JSR   	LINPUT         	
+0057	8015	CE 018D		      	LDX   	#LBUFF-1       	
+0058	8018	BD 8022		      	JSR   	CMD1           	
+0059	801B	81 21		      	CMPA  	#'!'           	;!コマンドならリターン
+0060	801D	27 02		      	BEQ   	LAU2           	
+0061	801F	20 EE		      	BRA   	LAU1           	
+0062	8021	39		LAU2  	RTS   			
+0063				
+0064				;----------------- COMMAND ------------------------
+0065				;CMD		LDX		#LBUFF+5-1
+0066	8022	08		CMD1  	INX   			
+0067	8023	A6 00		      	LDAA  	X              	
+0068	8025	BD 83F8		      	JSR   	AZLCNV         	
+0069	8028	81 20		      	CMPA  	#' '           	;最初のSPACEは除去
+0070	802A	27 F6		      	BEQ   	CMD1           	
+0071				
+0072	802C	81 4D		      	CMPA  	#'M'           	;MEXEC MSAVE
+0073	802E	27 12		      	BEQ   	CMD2           	
+0074	8030	81 4C		      	CMPA  	#'L'           	;LOAD
+0075	8032	27 1E		      	BEQ   	CMD3           	
+0076	8034	81 53		      	CMPA  	#'S'           	;SDDIR SAVE
+0077	8036	27 26		      	BEQ   	CMD4           	
+0078	8038	81 47		      	CMPA  	#'G'           	;GO
+0079	803A	27 4B		      	BEQ   	GCMD2          	
+0080	803C	81 21		      	CMPA  	#'!'           	;EXIT LAUNCHER
+0081	803E	27 4A		      	BEQ   	EXIT           	
+0082	8040	20 2C		      	BRA   	CMDERR         	
+0083				
+0084	8042	08		CMD2  	INX   			
+0085	8043	A6 00		      	LDAA  	X              	
+0086	8045	BD 83F8		      	JSR   	AZLCNV         	
+0087	8048	81 45		      	CMPA  	#'E'           	;MEXEC
+0088	804A	27 2C		      	BEQ   	MEXEC2         	
+0089	804C	81 53		      	CMPA  	#'S'           	;MSAVE
+0090	804E	27 2B		      	BEQ   	MSAVE2         	
+0091	8050	20 1C		      	BRA   	CMDERR         	
+0092				
+0093	8052	08		CMD3  	INX   			
+0094	8053	A6 00		      	LDAA  	X              	
+0095	8055	BD 83F8		      	JSR   	AZLCNV         	
+0096	8058	81 4F		      	CMPA  	#'O'           	;LOAD
+0097	805A	27 19		      	BEQ   	LOAD2          	
+0098	805C	20 10		      	BRA   	CMDERR         	
+0099				
+0100	805E	08		CMD4  	INX   			
+0101	805F	A6 00		      	LDAA  	X              	
+0102	8061	BD 83F8		      	JSR   	AZLCNV         	
+0103	8064	81 44		      	CMPA  	#'D'           	;SDDIR
+0104	8066	27 16		      	BEQ   	SDDIR2         	
+0105	8068	81 41		      	CMPA  	#'A'           	;SAVE
+0106	806A	27 15		      	BEQ   	SAVE2          	
+0107	806C	20 00		      	BRA   	CMDERR         	
+0108				
+0109	806E			CMDERR				
+0110	806E	CE 84DE		      	LDX   	#MSG_CMD       	
+0111	8071	BD 8403		      	JSR   	STRPRN         	
+0112	8074	39		      	RTS   			
+0113				
+0114	8075	7E 808E		LOAD2 	JMP   	LOAD           	
+0115	8078	7E 8240		MEXEC2	JMP   	MEXEC          	
+0116	807B	7E 81E3		MSAVE2	JMP   	MSAVE          	
+0117	807E	7E 8260		SDDIR2	JMP   	SDDIR          	
+0118	8081	7E 8180		SAVE2 	JMP   	SAVE           	
+0119	8084	7E 82EF		ULOAD2	JMP   	ULOAD          	
+0120	8087	7E 8245		GCMD2 	JMP   	GCMD           	
+0121	808A	39		EXIT  	RTS   			
 0122				
-0123	808B			ERRJ  				
-0124	808B	7E 8322		      	JMP   	ERRRTN         	
-0125				
-0126	808E			LOAD  				
-0127	808E	08		      	INX   			;'A'読み飛ばし
-0128	808F	08		      	INX   			;'D'読み飛ばし
-0129	8090	BD 83C7		      	JSR   	SPDEL          	;最初のSPACEは除去
-0130	8093			FN01  				
-0131				;		JSR		PIOINI			;8255初期化
-0132				
-0133	8093	86 83		      	LDAA  	#$83           	;コマンド$83を送信
-0134	8095	BD 83A7		      	JSR   	CSND           	
-0135	8098	4D		      	TSTA  			
-0136	8099	26 F0		      	BNE   	ERRJ           	
-0137				
-0138				;-------------------- CJRヘッダブロック受信 -------------------
-0139	809B	BD 8365		      	JSR   	RCVBYTE        	;$02
-0140	809E	BD 8365		      	JSR   	RCVBYTE        	;$2A
-0141	80A1	BD 8365		      	JSR   	RCVBYTE        	;$00
-0142	80A4	BD 8365		      	JSR   	RCVBYTE        	;$1A
-0143	80A7	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0144	80AA	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0145				
-0146	80AD	C6 10		      	LDAB  	#$10           	
-0147	80AF	CE 018E		      	LDX   	#LBUFF         	;SDから送られてきたファイル名を格納
-0148	80B2	BD 8365		LD1   	JSR   	RCVBYTE        	;FNAME
-0149	80B5	A7 00		      	STAA  	X              	
-0150	80B7	08		      	INX   			
-0151	80B8	5A		      	DECB  			
-0152	80B9	26 F7		      	BNE   	LD1            	
-0153	80BB	4F		      	CLRA  			
-0154	80BC	A7 00		      	STAA  	X              	
-0155				
-0156	80BE	BD 8365		      	JSR   	RCVBYTE        	;ファイルタイプ
-0157	80C1	97 C8		      	STAA  	FTYPE          	
-0158	80C3	4D		      	TSTA  			
-0159	80C4	26 08		      	BNE   	LD11           	
-0160	80C6	CE 8416		      	LDX   	#BSMSG         	
-0161	80C9	BD 83E4		      	JSR   	STRPRN         	
-0162	80CC	20 06		      	BRA   	LD12           	
-0163	80CE	CE 841E		LD11  	LDX   	#BNMSG         	
-0164	80D1	BD 83E4		      	JSR   	STRPRN         	
-0165	80D4	CE 8427		LD12  	LDX   	#LDMSG         	
-0166	80D7	BD 83E4		      	JSR   	STRPRN         	
-0167	80DA	CE 018E		      	LDX   	#LBUFF         	
-0168	80DD	BD 83E4		      	JSR   	STRPRN         	
-0169				
-0170	80E0	BD 8365		      	JSR   	RCVBYTE        	;ボーレート
-0171				
-0172	80E3	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0173	80E6	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0174	80E9	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0175	80EC	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0176	80EF	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0177	80F2	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0178	80F5	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0179	80F8	BD 8365		      	JSR   	RCVBYTE        	;$FF
-0180	80FB	BD 8365		      	JSR   	RCVBYTE        	;チェックサム
-0181				
-0182				;---------------- CJRデータブロック受信 ------------------------
-0183	80FE	BD 8365		LD2   	JSR   	RCVBYTE        	;$02
-0184	8101	BD 8365		      	JSR   	RCVBYTE        	;$2A
-0185	8104	BD 8365		      	JSR   	RCVBYTE        	;ブロックナンバー
-0186	8107	97 C9		      	STAA  	SDBLK          	
-0187	8109	81 FF		      	CMPA  	#$FF           	
-0188	810B	27 26		      	BEQ   	FOOTER         	
-0189	810D	BD 8365		      	JSR   	RCVBYTE        	;データサイズ
-0190	8110	16		      	TAB   			
-0191	8111	BD 8365		      	JSR   	RCVBYTE        	;ロードアドレス上位
-0192	8114	97 CA		      	STAA  	SDSRT          	
-0193	8116	BD 8365		      	JSR   	RCVBYTE        	;ロードアドレス下位
-0194	8119	97 CB		      	STAA  	SDSRT+1        	
-0195	811B	DE CA		      	LDX   	SDSRT          	
-0196	811D	96 C9		      	LDAA  	SDBLK          	
-0197	811F	81 01		      	CMPA  	#$01           	;ブロックナンバー01の時だけ、ロードアドレスを実行アドレスとして保存
-0198	8121	26 02		      	BNE   	LD3            	
-0199	8123	DF CE		      	STX   	SDEXE          	
-0200	8125	BD 8365		LD3   	JSR   	RCVBYTE        	;データ受信
-0201	8128	A7 00		      	STAA  	X              	
-0202	812A	08		      	INX   			
-0203	812B	5A		      	DECB  			
-0204	812C	26 F7		      	BNE   	LD3            	
-0205	812E	BD 8365		      	JSR   	RCVBYTE        	;チェックサム
-0206	8131	20 CB		      	BRA   	LD2            	
-0207				
-0208				;------------------ CJRフッターブロック受信 -------------------------
-0209	8133	BD 8365		FOOTER	JSR   	RCVBYTE        	;$FF
-0210	8136	BD 8365		      	JSR   	RCVBYTE        	;ロード終了アドレス+1上位
-0211	8139	BD 8365		      	JSR   	RCVBYTE        	;ロード終了アドレス+1下位
-0212	813C	09		      	DEX   			
-0213	813D	DF CA		      	STX   	SDSRT          	
-0214	813F	7D 00C8		      	TST   	FTYPE          	
-0215	8142	26 0A		      	BNE   	LD4            	
-0216				;----------- BASIC LOAD 後処理 ------------------
-0217	8144	DE CA		      	LDX   	SDSRT          	
-0218	8146	DF 71		      	STX   	PNT3           	
-0219	8148	DF 6F		      	STX   	PNT2           	
-0220	814A	08		      	INX   			
-0221	814B	DF 6D		      	STX   	PNT1           	
-0222	814D	39		      	RTS   			
-0223				;----------- マシン語 LOAD 後処理 ------------------
-0224	814E	86 28		LD4   	LDAA  	#'('           	
-0225	8150	BD EBE7		      	JSR   	PRINT          	
-0226	8153	CE 00CE		      	LDX   	#SDEXE         	
-0227	8156	BD 83F1		      	JSR   	PRHEX          	;スタートアドレス表示
-0228	8159	CE 00CF		      	LDX   	#SDEXE+1       	
-0229	815C	BD 83F1		      	JSR   	PRHEX          	
-0230	815F	86 2D		      	LDAA  	#'-'           	
-0231	8161	BD EBE7		      	JSR   	PRINT          	
-0232	8164	CE 00CA		      	LDX   	#SDSRT         	;エンドアドレス表示
-0233	8167	BD 83F1		      	JSR   	PRHEX          	
-0234	816A	CE 00CB		      	LDX   	#SDSRT+1       	
-0235	816D	BD 83F1		      	JSR   	PRHEX          	
-0236	8170	86 29		      	LDAA  	#')'           	
-0237	8172	BD EBE7		      	JSR   	PRINT          	
-0238	8175	39		      	RTS   			
-0239				
-0240	8176			ERRJ2 				
-0241	8176	7E 8322		      	JMP   	ERRRTN         	
-0242				
-0243				;--------------- BASIC プログラム SAVE ----------------------------
-0244	8179			SAVE  				
-0245	8179	08		      	INX   			;'V'読み飛ばし
-0246	817A	08		      	INX   			;'E'読み飛ばし
-0247	817B	BD 83C7		      	JSR   	SPDEL          	;最初のSPACEは除去
-0248				;		JSR		PIOINI			;8255初期化
-0249				
-0250	817E	86 84		      	LDAA  	#$84           	;コマンド$84、ファイルネームを送信
-0251	8180	BD 83A7		      	JSR   	CSND           	
-0252	8183	4D		      	TSTA  			
-0253	8184	26 F0		      	BNE   	ERRJ2          	
-0254				
-0255	8186	4F		      	CLRA  			
-0256	8187	BD 8379		      	JSR   	SNDBYTE        	;継続コード送信
-0257	818A	96 70		      	LDAA  	PNT2+1         	;BASICプログラム最終アドレス(下位バイト)
-0258	818C	80 01		      	SUBA  	#$01           	
-0259	818E	97 CD		      	STAA  	SDLNG+1        	
-0260	8190	96 6F		      	LDAA  	PNT2           	;BASICプログラム最終アドレス(上位バイト)
-0261	8192	82 08		      	SBCA  	#$08           	
-0262	8194	97 CC		      	STAA  	SDLNG          	
-0263	8196	DE CC		      	LDX   	SDLNG          	
-0264	8198	08		      	INX   			
-0265	8199	DF CC		      	STX   	SDLNG          	;ファイルサイズ計算(PNT2-$0801+1)
-0266	819B	27 34		      	BEQ   	SV99           	;BASICプログラムが無ければ終了
-0267	819D	4F		      	CLRA  			;ファイルタイプ(0:BASIC)
-0268	819E	BD 8379		      	JSR   	SNDBYTE        	
-0269	81A1	CE 0801		      	LDX   	#$0801         	;BASICプログラム先頭アドレス
-0270	81A4	DF CA		      	STX   	SDSRT          	
-0271				;----------------- SAVEデータ送信 ------------------------
-0272	81A6	96 CA		SV1   	LDAA  	SDSRT          	;SAVE開始アドレス送信
-0273	81A8	BD 8379		      	JSR   	SNDBYTE        	
-0274	81AB	96 CB		      	LDAA  	SDSRT+1        	
-0275	81AD	BD 8379		      	JSR   	SNDBYTE        	
-0276	81B0	96 CC		      	LDAA  	SDLNG          	;SAVEデータサイズ送信
-0277	81B2	BD 8379		      	JSR   	SNDBYTE        	
-0278	81B5	96 CD		      	LDAA  	SDLNG+1        	
-0279	81B7	BD 8379		      	JSR   	SNDBYTE        	
-0280				
-0281	81BA	DE CA		SV2   	LDX   	SDSRT          	
-0282	81BC	A6 00		      	LDAA  	X              	;SAVEデータ送信
-0283	81BE	BD 8379		      	JSR   	SNDBYTE        	
-0284	81C1	08		      	INX   			
-0285	81C2	DF CA		      	STX   	SDSRT          	
-0286	81C4	DE CC		      	LDX   	SDLNG          	;SDLNG-1
-0287	81C6	09		      	DEX   			
-0288	81C7	DF CC		      	STX   	SDLNG          	;SDLNGが0になるまでループ
-0289	81C9	26 EF		      	BNE   	SV2            	
-0290	81CB	CE 8430		      	LDX   	#SVMSG         	;SAVE終了MSG
-0291	81CE	BD 83E4		      	JSR   	STRPRN         	
-0292				
-0293	81D1	39		SV99  	RTS   			
-0294				
-0295	81D2			ERRJ3 				
-0296	81D2	7E 8322		      	JMP   	ERRRTN         	
-0297				
-0298				;---------------- 機械語プログラム SAVE -------------------------------
-0299	81D5			MSAVE 				
-0300	81D5	08		      	INX   			;'A'読み飛ばし
-0301	81D6	08		      	INX   			;'V'読み飛ばし
-0302	81D7	08		      	INX   			;'E'読み飛ばし
-0303	81D8	BD 83C7		      	JSR   	SPDEL          	;最初のSPACEは除去
+0123				
+0124	808B			ERRJ  				
+0125	808B	7E 8333		      	JMP   	ERRRTN         	
+0126				
+0127	808E			LOAD  				
+0128	808E	08		      	INX   			;'A'読み飛ばし
+0129	808F	08		      	INX   			;'D'読み飛ばし
+0130	8090	BD 83E6		      	JSR   	SPDEL          	;最初のSPACEは除去
+0131	8093			FN01  				
+0132				;		JSR		PIOINI			;8255初期化
+0133				
+0134	8093	86 83		      	LDAA  	#$83           	;コマンド$83を送信
+0135	8095	BD 83C6		      	JSR   	CSND           	
+0136	8098	4D		      	TSTA  			
+0137	8099	26 F0		      	BNE   	ERRJ           	
+0138				
+0139				;-------------------- CJRヘッダブロック受信 -------------------
+0140	809B	BD 8376		      	JSR   	RCVBYTE        	;$02
+0141	809E	BD 8376		      	JSR   	RCVBYTE        	;$2A
+0142	80A1	BD 8376		      	JSR   	RCVBYTE        	;$00
+0143	80A4	BD 8376		      	JSR   	RCVBYTE        	;$1A
+0144	80A7	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0145	80AA	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0146				
+0147	80AD	C6 10		      	LDAB  	#$10           	
+0148	80AF	CE 018E		      	LDX   	#LBUFF         	;SDから送られてきたファイル名を格納
+0149	80B2	BD 8376		LD1   	JSR   	RCVBYTE        	;FNAME
+0150	80B5	A7 00		      	STAA  	X              	
+0151	80B7	08		      	INX   			
+0152	80B8	5A		      	DECB  			
+0153	80B9	26 F7		      	BNE   	LD1            	
+0154	80BB	4F		      	CLRA  			
+0155	80BC	A7 00		      	STAA  	X              	
+0156				
+0157	80BE	BD 8376		      	JSR   	RCVBYTE        	;ファイルタイプ
+0158	80C1	97 C8		      	STAA  	FTYPE          	
+0159	80C3	4D		      	TSTA  			
+0160	80C4	26 08		      	BNE   	LD11           	
+0161	80C6	CE 8435		      	LDX   	#BSMSG         	
+0162	80C9	BD 8403		      	JSR   	STRPRN         	
+0163	80CC	20 06		      	BRA   	LD12           	
+0164	80CE	CE 843D		LD11  	LDX   	#BNMSG         	
+0165	80D1	BD 8403		      	JSR   	STRPRN         	
+0166	80D4	CE 8446		LD12  	LDX   	#LDMSG         	
+0167	80D7	BD 8403		      	JSR   	STRPRN         	
+0168	80DA	CE 018E		      	LDX   	#LBUFF         	
+0169	80DD	BD 8403		      	JSR   	STRPRN         	
+0170				
+0171	80E0	BD 8376		      	JSR   	RCVBYTE        	;ボーレート
+0172				
+0173	80E3	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0174	80E6	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0175	80E9	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0176	80EC	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0177	80EF	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0178	80F2	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0179	80F5	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0180	80F8	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0181	80FB	BD 8376		      	JSR   	RCVBYTE        	;チェックサム
+0182				
+0183				;---------------- CJRデータブロック受信 ------------------------
+0184	80FE	BD 8376		LD2   	JSR   	RCVBYTE        	;$02
+0185	8101	BD 8376		      	JSR   	RCVBYTE        	;$2A
+0186	8104	BD 8376		      	JSR   	RCVBYTE        	;ブロックナンバー
+0187	8107	97 C9		      	STAA  	SDBLK          	
+0188	8109	81 FF		      	CMPA  	#$FF           	
+0189	810B	27 29		      	BEQ   	FOOTER         	
+0190	810D	BD 8376		      	JSR   	RCVBYTE        	;データサイズ
+0191	8110	16		      	TAB   			
+0192	8111	BD 8376		      	JSR   	RCVBYTE        	;ロードアドレス上位
+0193	8114	97 CA		      	STAA  	SDSRT          	
+0194	8116	BD 8376		      	JSR   	RCVBYTE        	;ロードアドレス下位
+0195	8119	97 CB		      	STAA  	SDSRT+1        	
+0196	811B	DE CA		      	LDX   	SDSRT          	
+0197	811D	96 C9		      	LDAA  	SDBLK          	
+0198	811F	81 01		      	CMPA  	#$01           	;ブロックナンバー01の時だけ、ロードアドレスを実行アドレスとして保存
+0199	8121	26 02		      	BNE   	LD3            	
+0200	8123	DF CE		      	STX   	SDEXE          	
+0201	8125	BD 8376		LD3   	JSR   	RCVBYTE        	;データ受信
+0202	8128	B7 C11F		      	STAA  	CRTCNR         	;受信データをディスプレイ右上に表示
+0203	812B	A7 00		      	STAA  	X              	
+0204	812D	08		      	INX   			
+0205	812E	5A		      	DECB  			
+0206	812F	26 F4		      	BNE   	LD3            	
+0207	8131	BD 8376		      	JSR   	RCVBYTE        	;チェックサム
+0208	8134	20 C8		      	BRA   	LD2            	
+0209				
+0210				;------------------ CJRフッターブロック受信 -------------------------
+0211	8136	4F		FOOTER	CLRA  			
+0212	8137	B7 C11F		      	STAA  	CRTCNR         	;ディスプレイ右上をクリア
+0213	813A	BD 8376		      	JSR   	RCVBYTE        	;$FF
+0214	813D	BD 8376		      	JSR   	RCVBYTE        	;ロード終了アドレス+1上位
+0215	8140	BD 8376		      	JSR   	RCVBYTE        	;ロード終了アドレス+1下位
+0216	8143	09		      	DEX   			
+0217	8144	DF CA		      	STX   	SDSRT          	
+0218	8146	7D 00C8		      	TST   	FTYPE          	
+0219	8149	26 0A		      	BNE   	LD4            	
+0220				;----------- BASIC LOAD 後処理 ------------------
+0221	814B	DE CA		      	LDX   	SDSRT          	
+0222	814D	DF 71		      	STX   	PNT3           	
+0223	814F	DF 6F		      	STX   	PNT2           	
+0224	8151	08		      	INX   			
+0225	8152	DF 6D		      	STX   	PNT1           	
+0226	8154	39		      	RTS   			
+0227				;----------- マシン語 LOAD 後処理 ------------------
+0228	8155	86 28		LD4   	LDAA  	#'('           	
+0229	8157	BD EBE7		      	JSR   	PRINT          	
+0230	815A	CE 00CE		      	LDX   	#SDEXE         	
+0231	815D	BD 8410		      	JSR   	PRHEX          	;スタートアドレス表示
+0232	8160	CE 00CF		      	LDX   	#SDEXE+1       	
+0233	8163	BD 8410		      	JSR   	PRHEX          	
+0234	8166	86 2D		      	LDAA  	#'-'           	
+0235	8168	BD EBE7		      	JSR   	PRINT          	
+0236	816B	CE 00CA		      	LDX   	#SDSRT         	;エンドアドレス表示
+0237	816E	BD 8410		      	JSR   	PRHEX          	
+0238	8171	CE 00CB		      	LDX   	#SDSRT+1       	
+0239	8174	BD 8410		      	JSR   	PRHEX          	
+0240	8177	86 29		      	LDAA  	#')'           	
+0241	8179	BD EBE7		      	JSR   	PRINT          	
+0242	817C	39		      	RTS   			
+0243				
+0244	817D			ERRJ2 				
+0245	817D	7E 8333		      	JMP   	ERRRTN         	
+0246				
+0247				;--------------- BASIC プログラム SAVE ----------------------------
+0248	8180			SAVE  				
+0249	8180	08		      	INX   			;'V'読み飛ばし
+0250	8181	08		      	INX   			;'E'読み飛ばし
+0251	8182	BD 83E6		      	JSR   	SPDEL          	;最初のSPACEは除去
+0252				;		JSR		PIOINI			;8255初期化
+0253				
+0254	8185	86 84		      	LDAA  	#$84           	;コマンド$84、ファイルネームを送信
+0255	8187	BD 83C6		      	JSR   	CSND           	
+0256	818A	4D		      	TSTA  			
+0257	818B	26 F0		      	BNE   	ERRJ2          	
+0258				
+0259	818D	4F		      	CLRA  			
+0260	818E	BD 838A		      	JSR   	SNDBYTE        	;継続コード送信
+0261	8191	96 70		      	LDAA  	PNT2+1         	;BASICプログラム最終アドレス(下位バイト)
+0262	8193	80 01		      	SUBA  	#$01           	
+0263	8195	97 CD		      	STAA  	SDLNG+1        	
+0264	8197	96 6F		      	LDAA  	PNT2           	;BASICプログラム最終アドレス(上位バイト)
+0265	8199	82 08		      	SBCA  	#$08           	
+0266	819B	97 CC		      	STAA  	SDLNG          	
+0267	819D	DE CC		      	LDX   	SDLNG          	
+0268	819F	08		      	INX   			
+0269	81A0	DF CC		      	STX   	SDLNG          	;ファイルサイズ計算(PNT2-$0801+1)
+0270	81A2	27 3B		      	BEQ   	SV99           	;BASICプログラムが無ければ終了
+0271	81A4	4F		      	CLRA  			;ファイルタイプ(0:BASIC)
+0272	81A5	BD 838A		      	JSR   	SNDBYTE        	
+0273	81A8	CE 0801		      	LDX   	#$0801         	;BASICプログラム先頭アドレス
+0274	81AB	DF CA		      	STX   	SDSRT          	
+0275				;----------------- SAVEデータ送信 ------------------------
+0276	81AD	96 CA		SV1   	LDAA  	SDSRT          	;SAVE開始アドレス送信
+0277	81AF	BD 838A		      	JSR   	SNDBYTE        	
+0278	81B2	96 CB		      	LDAA  	SDSRT+1        	
+0279	81B4	BD 838A		      	JSR   	SNDBYTE        	
+0280	81B7	96 CC		      	LDAA  	SDLNG          	;SAVEデータサイズ送信
+0281	81B9	BD 838A		      	JSR   	SNDBYTE        	
+0282	81BC	96 CD		      	LDAA  	SDLNG+1        	
+0283	81BE	BD 838A		      	JSR   	SNDBYTE        	
+0284				
+0285	81C1	DE CA		SV2   	LDX   	SDSRT          	
+0286	81C3	A6 00		      	LDAA  	X              	;SAVEデータ送信
+0287	81C5	B7 C11F		      	STAA  	CRTCNR         	;送信データをディスプレイ右上に表示
+0288	81C8	BD 838A		      	JSR   	SNDBYTE        	
+0289	81CB	08		      	INX   			
+0290	81CC	DF CA		      	STX   	SDSRT          	
+0291	81CE	DE CC		      	LDX   	SDLNG          	;SDLNG-1
+0292	81D0	09		      	DEX   			
+0293	81D1	DF CC		      	STX   	SDLNG          	;SDLNGが0になるまでループ
+0294	81D3	26 EC		      	BNE   	SV2            	
+0295	81D5	CE 844F		      	LDX   	#SVMSG         	;SAVE終了MSG
+0296	81D8	BD 8403		      	JSR   	STRPRN         	
+0297	81DB	4F		      	CLRA  			
+0298	81DC	B7 C11F		      	STAA  	CRTCNR         	;ディスプレイ右上をクリア
+0299				
+0300	81DF	39		SV99  	RTS   			
+0301				
+0302	81E0			ERRJ3 				
+0303	81E0	7E 8333		      	JMP   	ERRRTN         	
 0304				
-0305	81DB	BD 83CF		      	JSR   	DLLDEL         	
-0306	81DE	DF A1		      	STX   	STRPNT         	
-0307	81E0	BD FB19		      	JSR   	STR2HEX        	;文字列からSAVE開始アドレスを取得
-0308	81E3	5D		      	TSTB  			
-0309	81E4	26 42		      	BNE   	ADDERR         	
-0310	81E6	96 75		      	LDAA  	HEXDAT         	
-0311	81E8	97 CA		      	STAA  	SDSRT          	
-0312	81EA	96 76		      	LDAA  	HEXDAT+1       	
-0313	81EC	97 CB		      	STAA  	SDSRT+1        	
-0314	81EE	08		      	INX   			
-0315	81EF	BD 83CF		      	JSR   	DLLDEL         	
-0316	81F2	DF A1		      	STX   	STRPNT         	
-0317	81F4	BD FB19		      	JSR   	STR2HEX        	;文字列からSAVE終了アドレスを取得
-0318	81F7	5D		      	TSTB  			
-0319	81F8	26 2E		      	BNE   	ADDERR         	
-0320				
-0321	81FA	08		      	INX   			
-0322				;		JSR		PIOINI			;8255初期化
-0323	81FB	86 84		      	LDAA  	#$84           	
-0324	81FD	BD 83A7		      	JSR   	CSND           	;コマンド$84、ファイルネームを送信
-0325	8200	4D		      	TSTA  			
-0326	8201	26 CF		      	BNE   	ERRJ3          	
+0305				;---------------- 機械語プログラム SAVE -------------------------------
+0306	81E3			MSAVE 				
+0307	81E3	08		      	INX   			;'A'読み飛ばし
+0308	81E4	08		      	INX   			;'V'読み飛ばし
+0309	81E5	08		      	INX   			;'E'読み飛ばし
+0310	81E6	BD 83E6		      	JSR   	SPDEL          	;最初のSPACEは除去
+0311				
+0312	81E9	BD 83EE		      	JSR   	DLLDEL         	
+0313	81EC	DF A1		      	STX   	STRPNT         	
+0314	81EE	BD FB19		      	JSR   	STR2HEX        	;文字列からSAVE開始アドレスを取得
+0315	81F1	5D		      	TSTB  			
+0316	81F2	26 42		      	BNE   	ADDERR         	
+0317	81F4	96 75		      	LDAA  	HEXDAT         	
+0318	81F6	97 CA		      	STAA  	SDSRT          	
+0319	81F8	96 76		      	LDAA  	HEXDAT+1       	
+0320	81FA	97 CB		      	STAA  	SDSRT+1        	
+0321	81FC	08		      	INX   			
+0322	81FD	BD 83EE		      	JSR   	DLLDEL         	
+0323	8200	DF A1		      	STX   	STRPNT         	
+0324	8202	BD FB19		      	JSR   	STR2HEX        	;文字列からSAVE終了アドレスを取得
+0325	8205	5D		      	TSTB  			
+0326	8206	26 2E		      	BNE   	ADDERR         	
 0327				
-0328	8203	96 76		      	LDAA  	HEXDAT+1       	;SAVE最終アドレス(下位バイト)
-0329	8205	90 CB		      	SUBA  	SDSRT+1        	
-0330	8207	97 CD		      	STAA  	SDLNG+1        	
-0331	8209	96 75		      	LDAA  	HEXDAT         	;SAVE最終アドレス(上位バイト)
-0332	820B	92 CA		      	SBCA  	SDSRT          	
-0333	820D	25 14		      	BCS   	ADDERR2        	
-0334	820F	97 CC		      	STAA  	SDLNG          	
-0335	8211	DE CC		      	LDX   	SDLNG          	
-0336	8213	08		      	INX   			
-0337	8214	DF CC		      	STX   	SDLNG          	;ファイルサイズ計算(HEXDAT-SDSRT+1)
-0338	8216	DE CA		      	LDX   	SDSRT          	
-0339				
-0340	8218	4F		      	CLRA  			
-0341	8219	BD 8379		      	JSR   	SNDBYTE        	;継続コード送信
-0342				
-0343	821C	86 01		      	LDAA  	#$01           	;ファイルタイプ(1:機械語)
-0344	821E	BD 8379		      	JSR   	SNDBYTE        	
-0345	8221	20 83		      	BRA   	SV1            	
+0328	8208	08		      	INX   			
+0329				;		JSR		PIOINI			;8255初期化
+0330	8209	86 84		      	LDAA  	#$84           	
+0331	820B	BD 83C6		      	JSR   	CSND           	;コマンド$84、ファイルネームを送信
+0332	820E	4D		      	TSTA  			
+0333	820F	26 CF		      	BNE   	ERRJ3          	
+0334				
+0335	8211	96 76		      	LDAA  	HEXDAT+1       	;SAVE最終アドレス(下位バイト)
+0336	8213	90 CB		      	SUBA  	SDSRT+1        	
+0337	8215	97 CD		      	STAA  	SDLNG+1        	
+0338	8217	96 75		      	LDAA  	HEXDAT         	;SAVE最終アドレス(上位バイト)
+0339	8219	92 CA		      	SBCA  	SDSRT          	
+0340	821B	25 14		      	BCS   	ADDERR2        	
+0341	821D	97 CC		      	STAA  	SDLNG          	
+0342	821F	DE CC		      	LDX   	SDLNG          	
+0343	8221	08		      	INX   			
+0344	8222	DF CC		      	STX   	SDLNG          	;ファイルサイズ計算(HEXDAT-SDSRT+1)
+0345	8224	DE CA		      	LDX   	SDSRT          	
 0346				
-0347	8223			ADDERR2				
-0348	8223	86 FF		      	LDAA  	#$FF           	
-0349	8225	BD 8379		      	JSR   	SNDBYTE        	;打ち切りコード送信
-0350	8228	CE 84B0		ADDERR	LDX   	#MSG_AD        	
-0351	822B	BD 83E4		      	JSR   	STRPRN         	
-0352	822E	39		      	RTS   			
+0347	8226	4F		      	CLRA  			
+0348	8227	BD 838A		      	JSR   	SNDBYTE        	;継続コード送信
+0349				
+0350	822A	86 01		      	LDAA  	#$01           	;ファイルタイプ(1:機械語)
+0351	822C	BD 838A		      	JSR   	SNDBYTE        	
+0352	822F	20 0C		      	BRA   	SVJMP          	
 0353				
-0354				;--------------- MEXECUTE 機械語読み込みアドレスを実行アドレスとしてジャンプ -------
-0355	822F	DE CE		MEXEC 	LDX   	SDEXE          	
-0356	8231	AD 00		      	JSR   	X              	
-0357	8233	39		      	RTS   			
-0358				
-0359				;--------------- GO COMMAND -------------------------
-0360	8234			GCMD  				
-0361	8234	BD 83C7		      	JSR   	SPDEL          	;最初のSPACEは除去
-0362	8237	BD 83CF		      	JSR   	DLLDEL         	
-0363	823A	DF A1		      	STX   	STRPNT         	
-0364	823C	BD FB19		      	JSR   	STR2HEX        	;文字列から実行開始アドレスを取得
-0365	823F	5D		      	TSTB  			
-0366	8240	26 E6		      	BNE   	ADDERR         	
-0367	8242	96 75		      	LDAA  	HEXDAT         	
-0368	8244	97 CE		      	STAA  	SDEXE          	
-0369	8246	96 76		      	LDAA  	HEXDAT+1       	
-0370	8248	97 CF		      	STAA  	SDEXE+1        	
-0371	824A	20 E3		      	BRA   	MEXEC          	
-0372				
-0373				;------------------ SDファイル一覧表示 ---------------------------
-0374	824C			ERRJ5 				
-0375	824C	7E 8322		      	JMP   	ERRRTN         	
-0376	824F			SDDIR 				
-0377	824F	08		      	INX   			;'D'読み飛ばし
-0378	8250	08		      	INX   			;'I'読み飛ばし
-0379	8251	08		      	INX   			;'R'読み飛ばし
-0380	8252	BD 83C7		      	JSR   	SPDEL          	;最初のSPACEは除去
-0381				;		JSR		PIOINI			;8255初期化
+0354	8231			ADDERR2				
+0355	8231	86 FF		      	LDAA  	#$FF           	
+0356	8233	BD 838A		      	JSR   	SNDBYTE        	;打ち切りコード送信
+0357	8236	CE 84CF		ADDERR	LDX   	#MSG_AD        	
+0358	8239	BD 8403		      	JSR   	STRPRN         	
+0359	823C	39		      	RTS   			
+0360				
+0361	823D	7E 81AD		SVJMP 	JMP   	SV1            	
+0362				
+0363				
+0364				;--------------- MEXECUTE 機械語読み込みアドレスを実行アドレスとしてジャンプ -------
+0365	8240	DE CE		MEXEC 	LDX   	SDEXE          	
+0366	8242	AD 00		      	JSR   	X              	
+0367	8244	39		      	RTS   			
+0368				
+0369				;--------------- GO COMMAND -------------------------
+0370	8245			GCMD  				
+0371	8245	BD 83E6		      	JSR   	SPDEL          	;最初のSPACEは除去
+0372	8248	BD 83EE		      	JSR   	DLLDEL         	
+0373	824B	DF A1		      	STX   	STRPNT         	
+0374	824D	BD FB19		      	JSR   	STR2HEX        	;文字列から実行開始アドレスを取得
+0375	8250	5D		      	TSTB  			
+0376	8251	26 E3		      	BNE   	ADDERR         	
+0377	8253	96 75		      	LDAA  	HEXDAT         	
+0378	8255	97 CE		      	STAA  	SDEXE          	
+0379	8257	96 76		      	LDAA  	HEXDAT+1       	
+0380	8259	97 CF		      	STAA  	SDEXE+1        	
+0381	825B	20 E3		      	BRA   	MEXEC          	
 0382				
-0383	8255	86 82		      	LDAA  	#$82           	;コマンド$82を送信
-0384				
-0385	8257	BD 83A7		      	JSR   	CSND           	
-0386	825A	4D		      	TSTA  			
-0387	825B	26 EF		      	BNE   	ERRJ5          	
-0388				
-0389	825D	CE 018E		DL1   	LDX   	#LBUFF         	;Arduinoから送られてくる文字列を#KBUFへ格納
-0390	8260	BD 8365		DL2   	JSR   	RCVBYTE        	
-0391	8263	BD 83D9		      	JSR   	AZLCNV         	;大文字に変換
-0392	8266	4D		      	TSTA  			
-0393	8267	27 11		      	BEQ   	DL3            	;$00を受信するまでを一行とする
-0394	8269	81 FF		      	CMPA  	#$FF           	
-0395	826B	27 1E		      	BEQ   	DL4            	;$FFを受信したら終了
-0396	826D	81 FD		      	CMPA  	#$FD           	
-0397	826F	27 1E		      	BEQ   	DL9            	;$FD受信で文字列を取得してSETLしたことを表示
-0398	8271	81 FE		      	CMPA  	#$FE           	
-0399	8273	27 35		      	BEQ   	DL5            	;$FEを受信したら一時停止して一文字入力待ち
-0400	8275	A7 00		      	STAA  	X              	
-0401	8277	08		      	INX   			
-0402	8278	20 E6		      	BRA   	DL2            	
-0403				
-0404	827A			DL3   				
-0405	827A	86 0D		      	LDAA  	#$0D           	;$00を受信したら一行分を表示して改行
-0406	827C	A7 00		      	STAA  	X              	
-0407	827E	08		      	INX   			
-0408				
-0409	827F	4F		      	CLRA  			
-0410	8280	A7 00		      	STAA  	X              	
-0411	8282	08		      	INX   			
-0412	8283	CE 018E		      	LDX   	#LBUFF         	
-0413	8286	BD 83E4		      	JSR   	STRPRN         	;1行表示
-0414	8289	20 D2		DL33  	BRA   	DL1            	
-0415				
-0416	828B	BD 8365		DL4   	JSR   	RCVBYTE        	;状態取得(00H=OK)して終了
-0417	828E	39		      	RTS   			
+0383				;------------------ SDファイル一覧表示 ---------------------------
+0384	825D			ERRJ5 				
+0385	825D	7E 8333		      	JMP   	ERRRTN         	
+0386	8260			SDDIR 				
+0387	8260	08		      	INX   			;'D'読み飛ばし
+0388	8261	08		      	INX   			;'I'読み飛ばし
+0389	8262	08		      	INX   			;'R'読み飛ばし
+0390	8263	BD 83E6		      	JSR   	SPDEL          	;最初のSPACEは除去
+0391				;		JSR		PIOINI			;8255初期化
+0392				
+0393	8266	86 82		      	LDAA  	#$82           	;コマンド$82を送信
+0394				
+0395	8268	BD 83C6		      	JSR   	CSND           	
+0396	826B	4D		      	TSTA  			
+0397	826C	26 EF		      	BNE   	ERRJ5          	
+0398				
+0399	826E	CE 018E		DL1   	LDX   	#LBUFF         	;Arduinoから送られてくる文字列を#KBUFへ格納
+0400	8271	BD 8376		DL2   	JSR   	RCVBYTE        	
+0401	8274	BD 83F8		      	JSR   	AZLCNV         	;大文字に変換
+0402	8277	4D		      	TSTA  			
+0403	8278	27 11		      	BEQ   	DL3            	;$00を受信するまでを一行とする
+0404	827A	81 FF		      	CMPA  	#$FF           	
+0405	827C	27 1E		      	BEQ   	DL4            	;$FFを受信したら終了
+0406	827E	81 FD		      	CMPA  	#$FD           	
+0407	8280	27 1E		      	BEQ   	DL9            	;$FD受信で文字列を取得してSETLしたことを表示
+0408	8282	81 FE		      	CMPA  	#$FE           	
+0409	8284	27 35		      	BEQ   	DL5            	;$FEを受信したら一時停止して一文字入力待ち
+0410	8286	A7 00		      	STAA  	X              	
+0411	8288	08		      	INX   			
+0412	8289	20 E6		      	BRA   	DL2            	
+0413				
+0414	828B			DL3   				
+0415	828B	86 0D		      	LDAA  	#$0D           	;$00を受信したら一行分を表示して改行
+0416	828D	A7 00		      	STAA  	X              	
+0417	828F	08		      	INX   			
 0418				
-0419	828F	CE 018E		DL9   	LDX   	#LBUFF         	;文字列を取得
-0420	8292	BD 8365		DL91  	JSR   	RCVBYTE        	;#KBUFへ文字列格納
-0421	8295	BD 83D9		      	JSR   	AZLCNV         	;大文字に変換
-0422	8298	A7 00		      	STAA  	X              	
-0423	829A	08		      	INX   			
-0424	829B	4D		      	TSTA  			;$00を受信するまで受信処理
-0425	829C	26 F4		      	BNE   	DL91           	
-0426	829E	BD 8365		      	JSR   	RCVBYTE        	;$FF終了コード読み飛ばし
-0427	82A1	BD 8365		      	JSR   	RCVBYTE        	;状態取得読み飛ばし
-0428	82A4	CE 018E		      	LDX   	#LBUFF         	
-0429	82A7	7E 8093		      	JMP   	FN01           	
-0430				
-0431	82AA	CE 8439		DL5   	LDX   	#MSGKEY        	;SEL:0-9 NXT:ANY BCK:B BRK:RET
-0432	82AD	BD 83E4		      	JSR   	STRPRN         	;文字列表示
-0433	82B0	BD E8CB		DL6   	JSR   	KSCAN          	;キーボートスキャン
-0434	82B3	96 01		      	LDAA  	KCODE          	
-0435	82B5	4D		      	TSTA  			
-0436	82B6	27 F8		      	BEQ   	DL6            	;何か入力されるまでループ
-0437	82B8	BD 83D9		      	JSR   	AZLCNV         	
-0438	82BB	81 0D		      	CMPA  	#$0D           	
-0439	82BD	27 0F		      	BEQ   	DL7            	;RETURNで打ち切り
-0440	82BF	81 30		      	CMPA  	#$30           	;数字0～9ならそのままArduinoへ送信してSETL処理へ
-0441	82C1	25 04		      	BCS   	DL61           	
-0442	82C3	81 3A		      	CMPA  	#$3A           	
-0443	82C5	25 09		      	BCS   	DL8            	
-0444	82C7	81 42		DL61  	CMPA  	#$42           	
-0445	82C9	27 05		      	BEQ   	DL8            	;「B」で前ページ
-0446	82CB	4F		      	CLRA  			
-0447	82CC	20 02		      	BRA   	DL8            	;それ以外で継続
-0448	82CE	86 FF		DL7   	LDAA  	#$FF           	
-0449	82D0	BD 8379		DL8   	JSR   	SNDBYTE        	
-0450	82D3	7E 825D		      	JMP   	DL1            	
-0451				
-0452	82D6	39		SDIR99	RTS   			
-0453				
-0454				;----------------- コマンドエラー表示 --------------------------
-0455	82D7			CMDERR2				
-0456	82D7	CE 857E		      	LDX   	#MSG2_CMD      	
-0457	82DA	BD 83E4		      	JSR   	STRPRN         	
-0458	82DD	39		      	RTS   			
-0459				
-0460				;---------------------- BASICプログラム中からLOAD -----------------
-0461				; A=USR($8003):REM xxxxxのように直後のREMの文字列をファイル名として解釈する。
-0462				; 指定は機械語プログラムのみ可。BASICプログラムを指定するとLOADした後暴走する。
-0463	82DE			ULOAD 				
-0464	82DE	DE 43		      	LDX   	EXEPNT         	;A <- (BASIC実行中の現在ポインタ)
-0465	82E0	A6 00		      	LDAA  	X              	
-0466	82E2	4D		      	TSTA  			;$00ならUSR文の後ろに記述無し
-0467	82E3	27 F2		      	BEQ   	CMDERR2        	
-0468	82E5	81 3A		      	CMPA  	#':'           	;USR文の後ろに文があるか
-0469	82E7	26 EE		      	BNE   	CMDERR2        	
-0470	82E9	08		      	INX   			
-0471	82EA	DF 43		      	STX   	EXEPNT         	;BASIC実行中の現在ポインタ更新
-0472	82EC	A6 00		      	LDAA  	X              	
-0473	82EE	81 AD		      	CMPA  	#$AD           	;後ろの文はREM文か
-0474	82F0	26 E5		      	BNE   	CMDERR2        	
-0475	82F2	08		ULD1  	INX   			
-0476	82F3	DF 43		      	STX   	EXEPNT         	;BASIC実行中の現在ポインタ更新
-0477	82F5	A6 00		      	LDAA  	X              	
-0478	82F7	BD 83D9		      	JSR   	AZLCNV         	
-0479	82FA	81 20		      	CMPA  	#' '           	;SPACEは除去
-0480	82FC	27 F4		      	BEQ   	ULD1           	
-0481				
-0482	82FE	CE 00D2		      	LDX   	#SDNAME        	
-0483	8301	DF D0		      	STX   	SDNPNT         	
-0484	8303	4D		ULD2  	TSTA  			;行が終わるまでをファイル名として取得
-0485	8304	27 13		      	BEQ   	ULD9           	
-0486	8306	BD 83D9		      	JSR   	AZLCNV         	;大文字変換
-0487	8309	A7 00		      	STAA  	X              	;ファイル名保存
-0488	830B	08		      	INX   			
-0489	830C	DF D0		      	STX   	SDNPNT         	;ファイル名保存ポインタ更新
-0490	830E	DE 43		      	LDX   	EXEPNT         	;BASIC実行中の現在ポインタ更新
-0491	8310	08		      	INX   			
-0492	8311	DF 43		      	STX   	EXEPNT         	
-0493	8313	A6 00		      	LDAA  	X              	
-0494	8315	DE D0		      	LDX   	SDNPNT         	
-0495	8317	20 EA		      	BRA   	ULD2           	
-0496				
-0497	8319			ULD9  				
-0498	8319	CE 00D2		      	LDX   	#SDNAME        	;ファイル名のアドレスをXレジスタにセットしてLOAD処理
-0499	831C	BD 839A		      	JSR   	PIOINI         	;8255初期化
-0500	831F	7E 8093		      	JMP   	FN01           	
-0501				
-0502				;--------------- エラーメッセージ ------------------------------
-0503	8322			ERRRTN				
-0504	8322	81 F0		      	CMPA  	#$F0           	
-0505	8324	26 05		      	BNE   	ERR1           	
-0506	8326	CE 8458		      	LDX   	#MSG_F0        	
-0507	8329	20 26		      	BRA   	ERRR           	
-0508	832B	81 F1		ERR1  	CMPA  	#$F1           	
-0509	832D	26 05		      	BNE   	ERR3           	
-0510	832F	CE 8472		      	LDX   	#MSG_F1        	
-0511	8332	20 1D		      	BRA   	ERRR           	
-0512	8334	81 F3		ERR3  	CMPA  	#$F3           	
-0513	8336	26 05		      	BNE   	ERR4           	
-0514	8338	CE 8481		      	LDX   	#MSG_F3        	
-0515	833B	20 14		      	BRA   	ERRR           	
-0516	833D	81 F4		ERR4  	CMPA  	#$F4           	
-0517	833F	26 05		      	BNE   	ERR99          	
-0518	8341	CE 848D		      	LDX   	#MSG_F4        	
-0519	8344	20 0B		      	BRA   	ERRR           	
-0520	8346			ERR99 				
-0521	8346	97 CA		      	STAA  	SDSRT          	
-0522	8348	CE 00CA		      	LDX   	#SDSRT         	
-0523	834B	BD 83F1		      	JSR   	PRHEX          	
-0524	834E	CE 84A8		      	LDX   	#MSG99         	
-0525				
-0526	8351	BD 83E4		ERRR  	JSR   	STRPRN         	
-0527	8354	39		      	RTS   			
-0528				
-0529				
-0530				**** BUSYをCHECK(1) ****
-0531				;PORTC BIT7が1になるまでLOOP
-0532	8355	B6 CD02		F1CHK 	LDAA  	PIOC           	
-0533	8358	84 80		      	ANDA  	#$80           	;PORTC BIT7 = 1?
-0534	835A	27 F9		      	BEQ   	F1CHK          	
-0535	835C	39		      	RTS   			
-0536				
-0537				**** BUSYをCHECK(0) ****
-0538				;PORTC BIT7が0になるまでLOOP
-0539	835D	B6 CD02		F2CHK 	LDAA  	PIOC           	
-0540	8360	84 80		      	ANDA  	#$80           	;PORTC BIT7 = 0?
-0541	8362	26 F9		      	BNE   	F2CHK          	
-0542	8364	39		      	RTS   			
-0543				
-0544				**** 1BYTE受信****
-0545				*受信データをアキュムレータAにセットしてリターン
-0546	8365	8D EE		RCVBYTE	BSR   	F1CHK          	;PORTC BIT7が1になるまでLOOP
-0547	8367	B6 CD01		      	LDAA  	PIOB           	;PORTB -> A
-0548	836A	36		      	PSHA  			
-0549	836B	86 05		      	LDAA  	#$05           	
-0550	836D	B7 CD03		      	STAA  	PIOR           	;PORTC BIT2 <- 1
-0551	8370	8D EB		      	BSR   	F2CHK          	;PORTC BIT7が0になるまでLOOP
-0552	8372	86 04		      	LDAA  	#$04           	
-0553	8374	B7 CD03		      	STAA  	PIOR           	;PORTC BIT2 <- 0
-0554	8377	32		      	PULA  			
-0555	8378	39		      	RTS   			
-0556				
-0557				**** 1BYTE送信 ****
-0558				*アキュムレータAの内容をPORTA下位4BITに4BITずつ送信
-0559	8379			SNDBYTE				
-0560	8379	36		      	PSHA  			
-0561	837A	44		      	LSRA  			
-0562	837B	44		      	LSRA  			
-0563	837C	44		      	LSRA  			
-0564	837D	44		      	LSRA  			
-0565	837E	84 0F		      	ANDA  	#$0F           	
-0566	8380	8D 06		      	BSR   	SND4BIT        	
-0567	8382	32		      	PULA  			
-0568	8383	84 0F		      	ANDA  	#$0F           	
-0569	8385	8D 01		      	BSR   	SND4BIT        	
-0570	8387	39		      	RTS   			
-0571				
-0572				**** 4BIT送信 ****
-0573				*アキュムレータA下位4ビットを送信する
-0574	8388			SND4BIT				
-0575	8388	B7 CD00		      	STAA  	PIOA           	
-0576	838B	86 05		      	LDAA  	#$05           	
-0577	838D	B7 CD03		      	STAA  	PIOR           	;PORTC BIT2 <- 1
-0578	8390	8D C3		      	BSR   	F1CHK          	;PORTC BIT7が1になるまでLOOP
-0579	8392	86 04		      	LDAA  	#$04           	
-0580	8394	B7 CD03		      	STAA  	PIOR           	;PORTC BIT2 <- 0
-0581	8397	8D C4		      	BSR   	F2CHK          	
-0582	8399	39		      	RTS   			
-0583				
-0584				
-0585				;**** 8255初期化 ****
-0586				;*PORTC下位BITをOUTPUT、上位BITをINPUT、PORTBをINPUT、PORTAをOUTPUT
-0587	839A	86 8A		PIOINI	LDAA  	#$8A           	
-0588	839C	B7 CD03		      	STAA  	PIOR           	;PIOR <- $8A
-0589	839F	4F		      	CLRA  			
-0590	83A0	B7 CD00		      	STAA  	PIOA           	;PIOA <- $00
-0591	83A3	B7 CD02		      	STAA  	PIOC           	;PIOC <- $00
-0592	83A6	39		      	RTS   			
+0419	8290	4F		      	CLRA  			
+0420	8291	A7 00		      	STAA  	X              	
+0421	8293	08		      	INX   			
+0422	8294	CE 018E		      	LDX   	#LBUFF         	
+0423	8297	BD 8403		      	JSR   	STRPRN         	;1行表示
+0424	829A	20 D2		DL33  	BRA   	DL1            	
+0425				
+0426	829C	BD 8376		DL4   	JSR   	RCVBYTE        	;状態取得(00H=OK)して終了
+0427	829F	39		      	RTS   			
+0428				
+0429	82A0	CE 018E		DL9   	LDX   	#LBUFF         	;文字列を取得
+0430	82A3	BD 8376		DL91  	JSR   	RCVBYTE        	;#KBUFへ文字列格納
+0431	82A6	BD 83F8		      	JSR   	AZLCNV         	;大文字に変換
+0432	82A9	A7 00		      	STAA  	X              	
+0433	82AB	08		      	INX   			
+0434	82AC	4D		      	TSTA  			;$00を受信するまで受信処理
+0435	82AD	26 F4		      	BNE   	DL91           	
+0436	82AF	BD 8376		      	JSR   	RCVBYTE        	;$FF終了コード読み飛ばし
+0437	82B2	BD 8376		      	JSR   	RCVBYTE        	;状態取得読み飛ばし
+0438	82B5	CE 018E		      	LDX   	#LBUFF         	
+0439	82B8	7E 8093		      	JMP   	FN01           	
+0440				
+0441	82BB	CE 8458		DL5   	LDX   	#MSGKEY        	;SEL:0-9 NXT:ANY BCK:B BRK:RET
+0442	82BE	BD 8403		      	JSR   	STRPRN         	;文字列表示
+0443	82C1	BD E8CB		DL6   	JSR   	KSCAN          	;キーボートスキャン
+0444	82C4	96 01		      	LDAA  	KCODE          	
+0445	82C6	4D		      	TSTA  			
+0446	82C7	27 F8		      	BEQ   	DL6            	;何か入力されるまでループ
+0447	82C9	BD 83F8		      	JSR   	AZLCNV         	
+0448	82CC	81 0D		      	CMPA  	#$0D           	
+0449	82CE	27 0F		      	BEQ   	DL7            	;RETURNで打ち切り
+0450	82D0	81 30		      	CMPA  	#$30           	;数字0～9ならそのままArduinoへ送信してSETL処理へ
+0451	82D2	25 04		      	BCS   	DL61           	
+0452	82D4	81 3A		      	CMPA  	#$3A           	
+0453	82D6	25 09		      	BCS   	DL8            	
+0454	82D8	81 42		DL61  	CMPA  	#$42           	
+0455	82DA	27 05		      	BEQ   	DL8            	;「B」で前ページ
+0456	82DC	4F		      	CLRA  			
+0457	82DD	20 02		      	BRA   	DL8            	;それ以外で継続
+0458	82DF	86 FF		DL7   	LDAA  	#$FF           	
+0459	82E1	BD 838A		DL8   	JSR   	SNDBYTE        	
+0460	82E4	7E 826E		      	JMP   	DL1            	
+0461				
+0462	82E7	39		SDIR99	RTS   			
+0463				
+0464				;----------------- コマンドエラー表示 --------------------------
+0465	82E8			CMDERR2				
+0466	82E8	CE 859D		      	LDX   	#MSG2_CMD      	
+0467	82EB	BD 8403		      	JSR   	STRPRN         	
+0468	82EE	39		      	RTS   			
+0469				
+0470				;---------------------- BASICプログラム中からLOAD -----------------
+0471				; A=USR($8003):REM xxxxxのように直後のREMの文字列をファイル名として解釈する。
+0472				; 指定は機械語プログラムのみ可。BASICプログラムを指定するとLOADした後暴走する。
+0473	82EF			ULOAD 				
+0474	82EF	DE 43		      	LDX   	EXEPNT         	;A <- (BASIC実行中の現在ポインタ)
+0475	82F1	A6 00		      	LDAA  	X              	
+0476	82F3	4D		      	TSTA  			;$00ならUSR文の後ろに記述無し
+0477	82F4	27 F2		      	BEQ   	CMDERR2        	
+0478	82F6	81 3A		      	CMPA  	#':'           	;USR文の後ろに文があるか
+0479	82F8	26 EE		      	BNE   	CMDERR2        	
+0480	82FA	08		      	INX   			
+0481	82FB	DF 43		      	STX   	EXEPNT         	;BASIC実行中の現在ポインタ更新
+0482	82FD	A6 00		      	LDAA  	X              	
+0483	82FF	81 AD		      	CMPA  	#$AD           	;後ろの文はREM文か
+0484	8301	26 E5		      	BNE   	CMDERR2        	
+0485	8303	08		ULD1  	INX   			
+0486	8304	DF 43		      	STX   	EXEPNT         	;BASIC実行中の現在ポインタ更新
+0487	8306	A6 00		      	LDAA  	X              	
+0488	8308	BD 83F8		      	JSR   	AZLCNV         	
+0489	830B	81 20		      	CMPA  	#' '           	;SPACEは除去
+0490	830D	27 F4		      	BEQ   	ULD1           	
+0491				
+0492	830F	CE 00D2		      	LDX   	#SDNAME        	
+0493	8312	DF D0		      	STX   	SDNPNT         	
+0494	8314	4D		ULD2  	TSTA  			;行が終わるまでをファイル名として取得
+0495	8315	27 13		      	BEQ   	ULD9           	
+0496	8317	BD 83F8		      	JSR   	AZLCNV         	;大文字変換
+0497	831A	A7 00		      	STAA  	X              	;ファイル名保存
+0498	831C	08		      	INX   			
+0499	831D	DF D0		      	STX   	SDNPNT         	;ファイル名保存ポインタ更新
+0500	831F	DE 43		      	LDX   	EXEPNT         	;BASIC実行中の現在ポインタ更新
+0501	8321	08		      	INX   			
+0502	8322	DF 43		      	STX   	EXEPNT         	
+0503	8324	A6 00		      	LDAA  	X              	
+0504	8326	DE D0		      	LDX   	SDNPNT         	
+0505	8328	20 EA		      	BRA   	ULD2           	
+0506				
+0507	832A			ULD9  				
+0508	832A	CE 00D2		      	LDX   	#SDNAME        	;ファイル名のアドレスをXレジスタにセットしてLOAD処理
+0509	832D	BD 83A8		      	JSR   	PIOINI         	;8255初期化
+0510	8330	7E 8093		      	JMP   	FN01           	
+0511				
+0512				;--------------- エラーメッセージ ------------------------------
+0513	8333			ERRRTN				
+0514	8333	81 F0		      	CMPA  	#$F0           	
+0515	8335	26 05		      	BNE   	ERR1           	
+0516	8337	CE 8477		      	LDX   	#MSG_F0        	
+0517	833A	20 26		      	BRA   	ERRR           	
+0518	833C	81 F1		ERR1  	CMPA  	#$F1           	
+0519	833E	26 05		      	BNE   	ERR3           	
+0520	8340	CE 8491		      	LDX   	#MSG_F1        	
+0521	8343	20 1D		      	BRA   	ERRR           	
+0522	8345	81 F3		ERR3  	CMPA  	#$F3           	
+0523	8347	26 05		      	BNE   	ERR4           	
+0524	8349	CE 84A0		      	LDX   	#MSG_F3        	
+0525	834C	20 14		      	BRA   	ERRR           	
+0526	834E	81 F4		ERR4  	CMPA  	#$F4           	
+0527	8350	26 05		      	BNE   	ERR99          	
+0528	8352	CE 84AC		      	LDX   	#MSG_F4        	
+0529	8355	20 0B		      	BRA   	ERRR           	
+0530	8357			ERR99 				
+0531	8357	97 CA		      	STAA  	SDSRT          	
+0532	8359	CE 00CA		      	LDX   	#SDSRT         	
+0533	835C	BD 8410		      	JSR   	PRHEX          	
+0534	835F	CE 84C7		      	LDX   	#MSG99         	
+0535				
+0536	8362	BD 8403		ERRR  	JSR   	STRPRN         	
+0537	8365	39		      	RTS   			
+0538				
+0539				
+0540				**** BUSYをCHECK(1) ****
+0541				;PORTA BIT4が1になるまでLOOP
+0542	8366	B6 CD02		F1CHK 	LDAA  	PIOB           	
+0543	8369	84 10		      	ANDA  	#$10           	;PORTB BIT4 = 1?
+0544	836B	27 F9		      	BEQ   	F1CHK          	
+0545	836D	39		      	RTS   			
+0546				
+0547				**** BUSYをCHECK(0) ****
+0548				;PORTA BIT4が0になるまでLOOP
+0549	836E	B6 CD02		F2CHK 	LDAA  	PIOB           	
+0550	8371	84 10		      	ANDA  	#$10           	;PORTB BIT4 = 0?
+0551	8373	26 F9		      	BNE   	F2CHK          	
+0552	8375	39		      	RTS   			
+0553				
+0554				**** 1BYTE受信****
+0555				*受信データをアキュムレータAにセットしてリターン
+0556	8376	8D EE		RCVBYTE	BSR   	F1CHK          	;PORTB BIT4が1になるまでLOOP
+0557	8378	B6 CD00		      	LDAA  	PIOA           	;PORTA -> A
+0558	837B	36		      	PSHA  			
+0559	837C	86 20		      	LDAA  	#$20           	
+0560	837E	B7 CD02		      	STAA  	PIOB           	;PORTB BIT5 <- 1
+0561	8381	8D EB		      	BSR   	F2CHK          	;PORTB BIT4が0になるまでLOOP
+0562	8383	86 00		      	LDAA  	#$00           	
+0563	8385	B7 CD02		      	STAA  	PIOB           	;PORTB BIT5 <- 0
+0564	8388	32		      	PULA  			
+0565	8389	39		      	RTS   			
+0566				
+0567				**** 1BYTE送信 ****
+0568				*アキュムレータAの内容をPORTB下位4BITに4BITずつ送信
+0569	838A			SNDBYTE				
+0570	838A	36		      	PSHA  			
+0571	838B	44		      	LSRA  			
+0572	838C	44		      	LSRA  			
+0573	838D	44		      	LSRA  			
+0574	838E	44		      	LSRA  			
+0575	838F	84 0F		      	ANDA  	#$0F           	
+0576	8391	8D 06		      	BSR   	SND4BIT        	
+0577	8393	32		      	PULA  			
+0578	8394	84 0F		      	ANDA  	#$0F           	
+0579	8396	8D 01		      	BSR   	SND4BIT        	
+0580	8398	39		      	RTS   			
+0581				
+0582				**** 4BIT送信 ****
+0583				*アキュムレータA下位4ビットを送信する
+0584	8399			SND4BIT				
+0585				;		STAA	PIOB
+0586	8399	8A 20		      	ORAA  	#$20           	
+0587	839B	B7 CD02		      	STAA  	PIOB           	;PORTB BIT5 <- 1
+0588	839E	8D C6		      	BSR   	F1CHK          	;PORTB BIT4が1になるまでLOOP
+0589	83A0	84 0F		      	ANDA  	#$0F           	
+0590	83A2	B7 CD02		      	STAA  	PIOB           	;PORTB BIT5 <- 0
+0591	83A5	8D C7		      	BSR   	F2CHK          	
+0592	83A7	39		      	RTS   			
 0593				
 0594				
-0595				;------------------ コマンド送信、ファイルネーム送信 -----------------------
-0596	83A7	BD 8379		CSND  	JSR   	SNDBYTE        	;Aレジスタのコマンドコードを送信
-0597	83AA	BD 8365		      	JSR   	RCVBYTE        	;状態取得($00=OK)
-0598	83AD	4D		      	TSTA  			
-0599	83AE	26 16		      	BNE   	CSND2          	
-0600				
-0601	83B0	C6 20		      	LDAB  	#$20           	;(X)からのファイル名32Byteを送信
-0602	83B2	A6 00		CSND1 	LDAA  	X              	
-0603	83B4	08		      	INX   			
-0604	83B5	81 22		      	CMPA  	#'"'           	;ダブルコーテーション除去
-0605	83B7	27 F9		      	BEQ   	CSND1          	
-0606	83B9	BD 8379		      	JSR   	SNDBYTE        	
-0607	83BC	5A		      	DECB  			
-0608	83BD	26 F3		      	BNE   	CSND1          	
-0609	83BF	4F		      	CLRA  			
-0610	83C0	BD 8379		      	JSR   	SNDBYTE        	;$00を送信
-0611	83C3	BD 8365		      	JSR   	RCVBYTE        	;状態取得($00=OK)
-0612	83C6	39		CSND2 	RTS   			
-0613				
-0614				
-0615				;------------------- 空白除去 ------------------------
-0616	83C7	08		SPDEL 	INX   			
-0617	83C8	A6 00		      	LDAA  	X              	
-0618	83CA	81 20		      	CMPA  	#' '           	;最初のSPACEは除去
-0619	83CC	27 F9		      	BEQ   	SPDEL          	
-0620	83CE	39		      	RTS   			
-0621				
-0622				;------------------- $除去 ------------------------
-0623	83CF	A6 00		DLLDEL	LDAA  	X              	
-0624	83D1	81 24		      	CMPA  	#'$'           	;最初の$は除去
-0625	83D3	26 03		      	BNE   	DLDEL1         	
-0626	83D5	08		      	INX   			
-0627	83D6	20 F7		      	BRA   	DLLDEL         	
-0628	83D8	39		DLDEL1	RTS   			
-0629				
-0630				;--------------- Aレジスタのアルファベット小文字を大文字に変換 ----------------
-0631	83D9	81 61		AZLCNV	CMPA  	#$61           	;a～zなら$20を引いてA～Zに変換
-0632	83DB	25 06		      	BCS   	AZ1            	
-0633	83DD	81 7B		      	CMPA  	#$7B           	
-0634	83DF	24 02		      	BCC   	AZ1            	
-0635	83E1	80 20		      	SUBA  	#$20           	
-0636	83E3	39		AZ1   	RTS   			
-0637				
-0638				;--------------- 文字列出力 ----------------------
-0639				;(X)から$00までの文字列を表示
-0640	83E4			STRPRN				
-0641	83E4	A6 00		      	LDAA  	X              	;A <- (X)
-0642	83E6	81 00		      	CMPA  	#$00           	;$00なら終了
-0643	83E8	27 06		      	BEQ   	SP1            	
-0644	83EA	BD EBE7		      	JSR   	PRINT          	;1文字出力
-0645	83ED	08		      	INX   			
-0646	83EE	20 F4		      	BRA   	STRPRN         	
-0647	83F0	39		SP1   	RTS   			
-0648				
-0649				;-------------- (X)の16進数を文字列2桁で表示 ----------
-0650	83F1	BD EEE7		PRHEX 	JSR   	HEX2AS         	
-0651	83F4	BD EBE7		      	JSR   	PRINT          	
-0652	83F7	17		      	TBA   			
-0653	83F8	BD EBE7		      	JSR   	PRINT          	
-0654	83FB	39		      	RTS   			
+0595				;**** 6821初期化 ****
+0596				;*PORTB下位BITをOUTPUT、PORTB BIT4をINPUT、PORTB BIT5をOUTPUT、PORTAをINPUT
+0597	83A8	4F		PIOINI	CLRA  			
+0598	83A9	B7 CD03		      	STAA  	PIOCB          	;データ方向レジスタ(B)を選択
+0599	83AC	86 EF		      	LDAA  	#$EF           	;PORTB下位BITをOUTPUT、PORTB BIT4をINPUT、PORTB BIT5をOUTPUTに設定
+0600	83AE	B7 CD02		      	STAA  	PIOB           	
+0601	83B1	86 2C		      	LDAA  	#$2C           	
+0602	83B3	B7 CD03		      	STAA  	PIOCB          	;PORTBに切り替え
+0603	83B6	4F		      	CLRA  			
+0604	83B7	B7 CD02		      	STAA  	PIOB           	;PORTBクリア
+0605				;		CLRA
+0606	83BA	B7 CD01		      	STAA  	PIOCA          	;データ方向レジスタ(A)を選択
+0607	83BD	B7 CD00		      	STAA  	PIOA           	;PORTAをINPUTに設定
+0608	83C0	86 2C		      	LDAA  	#$2C           	
+0609	83C2	B7 CD01		      	STAA  	PIOCA          	;PORTAに切り替え
+0610	83C5	39		      	RTS   			
+0611				
+0612				
+0613				;------------------ コマンド送信、ファイルネーム送信 -----------------------
+0614	83C6	BD 838A		CSND  	JSR   	SNDBYTE        	;Aレジスタのコマンドコードを送信
+0615	83C9	BD 8376		      	JSR   	RCVBYTE        	;状態取得($00=OK)
+0616	83CC	4D		      	TSTA  			
+0617	83CD	26 16		      	BNE   	CSND2          	
+0618				
+0619	83CF	C6 20		      	LDAB  	#$20           	;(X)からのファイル名32Byteを送信
+0620	83D1	A6 00		CSND1 	LDAA  	X              	
+0621	83D3	08		      	INX   			
+0622	83D4	81 22		      	CMPA  	#'"'           	;ダブルコーテーション除去
+0623	83D6	27 F9		      	BEQ   	CSND1          	
+0624	83D8	BD 838A		      	JSR   	SNDBYTE        	
+0625	83DB	5A		      	DECB  			
+0626	83DC	26 F3		      	BNE   	CSND1          	
+0627	83DE	4F		      	CLRA  			
+0628	83DF	BD 838A		      	JSR   	SNDBYTE        	;$00を送信
+0629	83E2	BD 8376		      	JSR   	RCVBYTE        	;状態取得($00=OK)
+0630	83E5	39		CSND2 	RTS   			
+0631				
+0632				
+0633				;------------------- 空白除去 ------------------------
+0634	83E6	08		SPDEL 	INX   			
+0635	83E7	A6 00		      	LDAA  	X              	
+0636	83E9	81 20		      	CMPA  	#' '           	;最初のSPACEは除去
+0637	83EB	27 F9		      	BEQ   	SPDEL          	
+0638	83ED	39		      	RTS   			
+0639				
+0640				;------------------- $除去 ------------------------
+0641	83EE	A6 00		DLLDEL	LDAA  	X              	
+0642	83F0	81 24		      	CMPA  	#'$'           	;最初の$は除去
+0643	83F2	26 03		      	BNE   	DLDEL1         	
+0644	83F4	08		      	INX   			
+0645	83F5	20 F7		      	BRA   	DLLDEL         	
+0646	83F7	39		DLDEL1	RTS   			
+0647				
+0648				;--------------- Aレジスタのアルファベット小文字を大文字に変換 ----------------
+0649	83F8	81 61		AZLCNV	CMPA  	#$61           	;a～zなら$20を引いてA～Zに変換
+0650	83FA	25 06		      	BCS   	AZ1            	
+0651	83FC	81 7B		      	CMPA  	#$7B           	
+0652	83FE	24 02		      	BCC   	AZ1            	
+0653	8400	80 20		      	SUBA  	#$20           	
+0654	8402	39		AZ1   	RTS   			
 0655				
-0656				
-0657	83FC			TITLE_MSG				
-0658	83FC	0C 		      	FCB   	$0C            	
-0659	83FD	20 20 2A 2A 	      	FCC     	/  ** JR-200_SD **/	
+0656				;--------------- 文字列出力 ----------------------
+0657				;(X)から$00までの文字列を表示
+0658	8403			STRPRN				
+0659	8403	A6 00		      	LDAA  	X              	;A <- (X)
+0660	8405	81 00		      	CMPA  	#$00           	;$00なら終了
+0661	8407	27 06		      	BEQ   	SP1            	
+0662	8409	BD EBE7		      	JSR   	PRINT          	;1文字出力
+0663	840C	08		      	INX   			
+0664	840D	20 F4		      	BRA   	STRPRN         	
+0665	840F	39		SP1   	RTS   			
+0666				
+0667				;-------------- (X)の16進数を文字列2桁で表示 ----------
+0668	8410	BD EEE7		PRHEX 	JSR   	HEX2AS         	
+0669	8413	BD EBE7		      	JSR   	PRINT          	
+0670	8416	17		      	TBA   			
+0671	8417	BD EBE7		      	JSR   	PRINT          	
+0672	841A	39		      	RTS   			
+0673				
+0674				
+0675	841B			TITLE_MSG				
+0676	841B	0C 		      	FCB   	$0C            	
+0677	841C	20 20 2A 2A 	      	FCC     	/  ** JR-200_SD **/	
     	    	20 4A 52 2D 
     	    	32 30 30 5F 
     	    	53 44 20 2A 
     	    	2A 
-0660	840E	0D 0D 00 		      	FCB   	$0D,$0D,$00    	
-0661				
-0662	8411	0D 		SDMES 	FCB   	$0D            	
-0663	8412	53 44 3E 		      	FCC     	/SD>/   	
-0664	8415	FF 		      	FCB   	$FF            	
-0665				
-0666	8416	0D 		BSMSG 	FCB   	$0D            	
-0667	8417	42 41 53 49 	      	FCC     	/BASIC /	
-    	    	43 20 
-0668	841D	00 		      	FCB   	$00            	
-0669				
-0670	841E	0D 		BNMSG 	FCB   	$0D            	
-0671	841F	42 49 4E 41 	      	FCC     	/BINARY /	
-    	    	52 59 20 
-0672	8426	00 		      	FCB   	$00            	
-0673				
-0674	8427	4C 4F 41 44 	LDMSG 	FCC     	/LOADING /	
-    	    	49 4E 47 20 
-0675	842F	00 		      	FCB   	$00            	
-0676				
-0677	8430	53 41 56 45 	SVMSG 	FCC     	/SAVE OK!/	
-    	    	20 4F 4B 21 
-0678	8438	00 		      	FCB   	$00            	
+0678	842D	0D 0D 00 		      	FCB   	$0D,$0D,$00    	
 0679				
-0680	8439	53 45 4C 3A 	MSGKEY	FCC     	/SEL:0-9 NXT:ANY BCK:B BRK:RET/	
+0680	8430	0D 		SDMES 	FCB   	$0D            	
+0681	8431	53 44 3E 		      	FCC     	/SD>/   	
+0682	8434	FF 		      	FCB   	$FF            	
+0683				
+0684	8435	0D 		BSMSG 	FCB   	$0D            	
+0685	8436	42 41 53 49 	      	FCC     	/BASIC /	
+    	    	43 20 
+0686	843C	00 		      	FCB   	$00            	
+0687				
+0688	843D	0D 		BNMSG 	FCB   	$0D            	
+0689	843E	42 49 4E 41 	      	FCC     	/BINARY /	
+    	    	52 59 20 
+0690	8445	00 		      	FCB   	$00            	
+0691				
+0692	8446	4C 4F 41 44 	LDMSG 	FCC     	/LOADING /	
+    	    	49 4E 47 20 
+0693	844E	00 		      	FCB   	$00            	
+0694				
+0695	844F	53 41 56 45 	SVMSG 	FCC     	/SAVE OK!/	
+    	    	20 4F 4B 21 
+0696	8457	00 		      	FCB   	$00            	
+0697				
+0698	8458	53 45 4C 3A 	MSGKEY	FCC     	/SEL:0-9 NXT:ANY BCK:B BRK:RET/	
     	    	30 2D 39 20 
     	    	4E 58 54 3A 
     	    	41 4E 59 20 
@@ -693,144 +711,145 @@
     	    	42 20 42 52 
     	    	4B 3A 52 45 
     	    	54 
-0681	8456	0D 00 		      	FCB   	$0D,$00        	
-0682				
-0683	8458			MSG_F0				
-0684	8458	53 44 2D 43 	      	FCC     	/SD-CARD INITIALIZE ERROR/	
+0699	8475	0D 00 		      	FCB   	$0D,$00        	
+0700				
+0701	8477			MSG_F0				
+0702	8477	53 44 2D 43 	      	FCC     	/SD-CARD INITIALIZE ERROR/	
     	    	41 52 44 20 
     	    	49 4E 49 54 
     	    	49 41 4C 49 
     	    	5A 45 20 45 
     	    	52 52 4F 52 
-0685	8470	0D 00 		      	FCB   	$0D,$00        	
-0686				
-0687	8472			MSG_F1				
-0688	8472	4E 4F 54 20 	      	FCC     	/NOT FIND FILE/	
+0703	848F	0D 00 		      	FCB   	$0D,$00        	
+0704				
+0705	8491			MSG_F1				
+0706	8491	4E 4F 54 20 	      	FCC     	/NOT FIND FILE/	
     	    	46 49 4E 44 
     	    	20 46 49 4C 
     	    	45 
-0689	847F	0D 00 		      	FCB   	$0D,$00        	
-0690				
-0691	8481			MSG_F3				
-0692	8481	46 49 4C 45 	      	FCC     	/FILE EXIST/	
+0707	849E	0D 00 		      	FCB   	$0D,$00        	
+0708				
+0709	84A0			MSG_F3				
+0710	84A0	46 49 4C 45 	      	FCC     	/FILE EXIST/	
     	    	20 45 58 49 
     	    	53 54 
-0693	848B	0D 00 		      	FCB   	$0D,$00        	
-0694				
-0695	848D			MSG_F4				
-0696	848D	50 52 4F 47 	      	FCC     	/PROG FORMAT VERSION ERROR/	
+0711	84AA	0D 00 		      	FCB   	$0D,$00        	
+0712				
+0713	84AC			MSG_F4				
+0714	84AC	50 52 4F 47 	      	FCC     	/PROG FORMAT VERSION ERROR/	
     	    	20 46 4F 52 
     	    	4D 41 54 20 
     	    	56 45 52 53 
     	    	49 4F 4E 20 
     	    	45 52 52 4F 
     	    	52 
-0697	84A6	0D 00 		      	FCB   	$0D,$00        	
-0698				
-0699	84A8			MSG99 				
-0700	84A8	20 45 52 52 	      	FCC     	/ ERROR/	
+0715	84C5	0D 00 		      	FCB   	$0D,$00        	
+0716				
+0717	84C7			MSG99 				
+0718	84C7	20 45 52 52 	      	FCC     	/ ERROR/	
     	    	4F 52 
-0701	84AE	0D 00 		      	FCB   	$0D,$00        	
-0702				
-0703	84B0			MSG_AD				
-0704	84B0	41 44 44 52 	      	FCC     	/ADDRESS ERROR/	
+0719	84CD	0D 00 		      	FCB   	$0D,$00        	
+0720				
+0721	84CF			MSG_AD				
+0722	84CF	41 44 44 52 	      	FCC     	/ADDRESS ERROR/	
     	    	45 53 53 20 
     	    	45 52 52 4F 
     	    	52 
-0705	84BD	0D 00 		      	FCB   	$0D,$00        	
-0706				
-0707	84BF			MSG_CMD				
-0708	84BF	43 4F 4D 4D 	      	FCC     	/COMMAND FAILED!/	
+0723	84DC	0D 00 		      	FCB   	$0D,$00        	
+0724				
+0725	84DE			MSG_CMD				
+0726	84DE	43 4F 4D 4D 	      	FCC     	/COMMAND FAILED!/	
     	    	41 4E 44 20 
     	    	46 41 49 4C 
     	    	45 44 21 
-0709	84CE	0D 		      	FCB   	$0D            	
-0710	84CF	20 21 20 20 	      	FCC     	/ !     : Return To Monitor/	
+0727	84ED	0D 		      	FCB   	$0D            	
+0728	84EE	20 21 20 20 	      	FCC     	/ !     : Return To Monitor/	
     	    	20 20 20 3A 
     	    	20 52 65 74 
     	    	75 72 6E 20 
     	    	54 6F 20 4D 
     	    	6F 6E 69 74 
     	    	6F 72 
-0711	84E9	0D 		      	FCB   	$0D            	
-0712	84EA	20 4C 4F 41 	      	FCC     	/ LOAD  : Load From SD/	
+0729	8508	0D 		      	FCB   	$0D            	
+0730	8509	20 4C 4F 41 	      	FCC     	/ LOAD  : Load From SD/	
     	    	44 20 20 3A 
     	    	20 4C 6F 61 
     	    	64 20 46 72 
     	    	6F 6D 20 53 
     	    	44 
-0713	84FF	0D 		      	FCB   	$0D            	
-0714	8500	20 4D 45 58 	      	FCC     	/ MEXEC : Binary Execute/	
+0731	851E	0D 		      	FCB   	$0D            	
+0732	851F	20 4D 45 58 	      	FCC     	/ MEXEC : Binary Execute/	
     	    	45 43 20 3A 
     	    	20 42 69 6E 
     	    	61 72 79 20 
     	    	45 78 65 63 
     	    	75 74 65 
-0715	8517	0D 		      	FCB   	$0D            	
-0716	8518	20 47 20 20 	      	FCC     	/ G     : Binary Execute/	
+0733	8536	0D 		      	FCB   	$0D            	
+0734	8537	20 47 20 20 	      	FCC     	/ G     : Binary Execute/	
     	    	20 20 20 3A 
     	    	20 42 69 6E 
     	    	61 72 79 20 
     	    	45 78 65 63 
     	    	75 74 65 
-0717	852F	0D 		      	FCB   	$0D            	
-0718	8530	20 53 41 56 	      	FCC     	/ SAVE  : Save To SD(BASIC)/	
+0735	854E	0D 		      	FCB   	$0D            	
+0736	854F	20 53 41 56 	      	FCC     	/ SAVE  : Save To SD(BASIC)/	
     	    	45 20 20 3A 
     	    	20 53 61 76 
     	    	65 20 54 6F 
     	    	20 53 44 28 
     	    	42 41 53 49 
     	    	43 29 
-0719	854A	0D 		      	FCB   	$0D            	
-0720	854B	20 4D 53 41 	      	FCC     	/ MSAVE : Save To SD(Binary)/	
+0737	8569	0D 		      	FCB   	$0D            	
+0738	856A	20 4D 53 41 	      	FCC     	/ MSAVE : Save To SD(Binary)/	
     	    	56 45 20 3A 
     	    	20 53 61 76 
     	    	65 20 54 6F 
     	    	20 53 44 28 
     	    	42 69 6E 61 
     	    	72 79 29 
-0721	8566	0D 		      	FCB   	$0D            	
-0722	8567	20 53 44 44 	      	FCC     	/ SDDIR : Find SD File/	
+0739	8585	0D 		      	FCB   	$0D            	
+0740	8586	20 53 44 44 	      	FCC     	/ SDDIR : Find SD File/	
     	    	49 52 20 3A 
     	    	20 46 69 6E 
     	    	64 20 53 44 
     	    	20 46 69 6C 
     	    	65 
-0723	857C	0D 00 		      	FCB   	$0D,$00        	
-0724				
-0725	857E			MSG2_CMD				
-0726	857E	53 79 6E 74 	      	FCC     	/Syntax ERROR/	
+0741	859B	0D 00 		      	FCB   	$0D,$00        	
+0742				
+0743	859D			MSG2_CMD				
+0744	859D	53 79 6E 74 	      	FCC     	/Syntax ERROR/	
     	    	61 78 20 45 
     	    	52 52 4F 52 
-0727	858A	0D 00 		      	FCB   	$0D,$00        	
-0728				
-0729					END   	               	
+0745	85A9	0D 00 		      	FCB   	$0D,$00        	
+0746				
+0747					END   	               	
 
 0 error(s),  0 warning(s) is detected.
 
 Label	address
-ADDERR	8228	ADDERR2	8223	AZ1   	83E3	AZLCNV	83D9	BNMSG 	841E
-BSMSG 	8416	BUFPNT	0057	CMD1  	8022	CMD2  	8042	CMD3  	8052
-CMD4  	805E	CMDERR	806E	CMDERR2	82D7	CSND  	83A7	CSND1 	83B2
-CSND2 	83C6	DL1   	825D	DL2   	8260	DL3   	827A	DL33  	8289
-DL4   	828B	DL5   	82AA	DL6   	82B0	DL61  	82C7	DL7   	82CE
-DL8   	82D0	DL9   	828F	DL91  	8292	DLDEL1	83D8	DLLDEL	83CF
-ERR1  	832B	ERR3  	8334	ERR4  	833D	ERR99 	8346	ERRJ  	808B
-ERRJ2 	8176	ERRJ3 	81D2	ERRJ5 	824C	ERRR  	8351	ERRRTN	8322
-EXEPNT	0043	EXIT  	808A	F1CHK 	8355	F2CHK 	835D	FN01  	8093
-FOOTER	8133	FTYPE 	00C8	GCMD  	8234	GCMD2 	8087	HEX2AS	EEE7
-HEXDAT	0075	JOYSTK1	0002	JOYSTK2	0003	KCODE 	0001	KSCAN 	E8CB
-LAU   	8000	LAU1  	800F	LAU2  	8021	LAUNCH	8006	LBUFF 	018E
-LD1   	80B2	LD11  	80CE	LD12  	80D4	LD2   	80FE	LD3   	8125
-LD4   	814E	LDMSG 	8427	LINPUT	EAD0	LOAD  	808E	LOAD2 	8075
-MEXEC 	822F	MEXEC2	8078	MSAVE 	81D5	MSAVE2	807B	MSG2_CMD	857E
-MSG99 	84A8	MSG_AD	84B0	MSG_CMD	84BF	MSG_F0	8458	MSG_F1	8472
-MSG_F3	8481	MSG_F4	848D	MSGKEY	8439	PIOA  	CD00	PIOB  	CD01
-PIOC  	CD02	PIOINI	839A	PIOR  	CD03	PNT1  	006D	PNT2  	006F
-PNT3  	0071	PRHEX 	83F1	PRINT 	EBE7	RCVBYTE	8365	SAVE  	8179
-SAVE2 	8081	SDBLK 	00C9	SDDIR 	824F	SDDIR2	807E	SDEXE 	00CE
-SDIR99	82D6	SDLNG 	00CC	SDMES 	8411	SDNAME	00D2	SDNPNT	00D0
-SDSRT 	00CA	SND4BIT	8388	SNDBYTE	8379	SP1   	83F0	SPDEL 	83C7
-STR2HEX	FB19	STRPNT	00A1	STRPRN	83E4	SV1   	81A6	SV2   	81BA
-SV99  	81D1	SVMSG 	8430	TITLE_MSG	83FC	ULD1  	82F2	ULD2  	8303
-ULD9  	8319	ULDJ  	8003	ULOAD 	82DE	ULOAD2	8084	
+ADDERR	8236	ADDERR2	8231	AZ1   	8402	AZLCNV	83F8	BNMSG 	843D
+BSMSG 	8435	BUFPNT	0057	CMD1  	8022	CMD2  	8042	CMD3  	8052
+CMD4  	805E	CMDERR	806E	CMDERR2	82E8	CRTCNR	C11F	CSND  	83C6
+CSND1 	83D1	CSND2 	83E5	DL1   	826E	DL2   	8271	DL3   	828B
+DL33  	829A	DL4   	829C	DL5   	82BB	DL6   	82C1	DL61  	82D8
+DL7   	82DF	DL8   	82E1	DL9   	82A0	DL91  	82A3	DLDEL1	83F7
+DLLDEL	83EE	ERR1  	833C	ERR3  	8345	ERR4  	834E	ERR99 	8357
+ERRJ  	808B	ERRJ2 	817D	ERRJ3 	81E0	ERRJ5 	825D	ERRR  	8362
+ERRRTN	8333	EXEPNT	0043	EXIT  	808A	F1CHK 	8366	F2CHK 	836E
+FN01  	8093	FOOTER	8136	FTYPE 	00C8	GCMD  	8245	GCMD2 	8087
+HEX2AS	EEE7	HEXDAT	0075	JOYSTK1	0002	JOYSTK2	0003	KCODE 	0001
+KSCAN 	E8CB	LAU   	8000	LAU1  	800F	LAU2  	8021	LAUNCH	8006
+LBUFF 	018E	LD1   	80B2	LD11  	80CE	LD12  	80D4	LD2   	80FE
+LD3   	8125	LD4   	8155	LDMSG 	8446	LINPUT	EAD0	LOAD  	808E
+LOAD2 	8075	MEXEC 	8240	MEXEC2	8078	MSAVE 	81E3	MSAVE2	807B
+MSG2_CMD	859D	MSG99 	84C7	MSG_AD	84CF	MSG_CMD	84DE	MSG_F0	8477
+MSG_F1	8491	MSG_F3	84A0	MSG_F4	84AC	MSGKEY	8458	PIOA  	CD00
+PIOB  	CD02	PIOCA 	CD01	PIOCB 	CD03	PIOINI	83A8	PNT1  	006D
+PNT2  	006F	PNT3  	0071	PRHEX 	8410	PRINT 	EBE7	RCVBYTE	8376
+SAVE  	8180	SAVE2 	8081	SDBLK 	00C9	SDDIR 	8260	SDDIR2	807E
+SDEXE 	00CE	SDIR99	82E7	SDLNG 	00CC	SDMES 	8430	SDNAME	00D2
+SDNPNT	00D0	SDSRT 	00CA	SND4BIT	8399	SNDBYTE	838A	SP1   	840F
+SPDEL 	83E6	STR2HEX	FB19	STRPNT	00A1	STRPRN	8403	SV1   	81AD
+SV2   	81C1	SV99  	81DF	SVJMP 	823D	SVMSG 	844F	TITLE_MSG	841B
+ULD1  	8303	ULD2  	8314	ULD9  	832A	ULDJ  	8003	ULOAD 	82EF
+ULOAD2	8084	
