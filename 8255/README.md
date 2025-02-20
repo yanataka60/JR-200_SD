@@ -10,9 +10,9 @@ PIOに6821を使ったVersionを正式Versionとしますが、入手性の良�
 ## 回路図
 　8255フォルダ、KiCadフォルダ内のJR-200_SD.pdfを参照してください。
 
-[回路図](https://github.com/yanataka60/JR-200_SD/blob/main/Kicad/JR-200_SD.pdf)
+[回路図](https://github.com/yanataka60/JR-200_SD/blob/main/8255/Kicad/JR-200_SD.pdf)
 
-![JR-200_SD](https://github.com/yanataka60/JR-200_SD/blob/main/Kicad/JR-200_SD_1.jpg)
+![JR-200_SD](https://github.com/yanataka60/JR-200_SD/blob/main/8255/Kicad/JR-200_SD_1.jpg)
 
 ## 部品
 　6821版との違いは、U6がLS04ではなくLS00であること、U8が6821ではなく8255であることです。
